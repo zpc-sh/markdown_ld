@@ -1,0 +1,7 @@
+/Users/locnguyen/src/code/kyozo_api/native/markdown_ld_nif/target/debug/deps/potential_utf-50b58489fa45570d.d: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/uchar.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/ustr.rs
+
+/Users/locnguyen/src/code/kyozo_api/native/markdown_ld_nif/target/debug/deps/libpotential_utf-50b58489fa45570d.rmeta: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/uchar.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/ustr.rs
+
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/lib.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/uchar.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.2/src/ustr.rs:
