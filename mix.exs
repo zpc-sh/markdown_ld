@@ -4,7 +4,7 @@ defmodule MarkdownLd.MixProject do
   def project do
     [
       app: :markdown_ld,
-      version: "0.3.0",
+      version: "0.4.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -48,6 +48,7 @@ defmodule MarkdownLd.MixProject do
       homepage_url: "https://github.com/nocsi/markdown-ld",
       extras: [
         "README.md",
+        "SPEC.md": [title: "Markdown‑LD Profile"],
         "PERFORMANCE_REPORT.md": [title: "Performance Report"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
@@ -64,7 +65,7 @@ defmodule MarkdownLd.MixProject do
       api_reference: false,
       formatters: ["html", "epub"],
       authors: ["NOCSI"],
-      source_ref: "v0.3.0",
+      source_ref: "v0.4.0",
       canonical: "http://hexdocs.pm/markdown_ld",
       language: "en"
     ]
@@ -83,7 +84,7 @@ defmodule MarkdownLd.MixProject do
   defp package do
     [
       name: "markdown_ld",
-      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE 
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE SPEC.md 
                 CHANGELOG.md native/markdown_ld_nif/src 
                 native/markdown_ld_nif/Cargo.toml native/markdown_ld_nif/Cargo.lock
                 native/markdown_ld_nif/.cargo),

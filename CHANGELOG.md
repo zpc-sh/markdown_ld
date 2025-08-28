@@ -5,6 +5,27 @@ All notable changes to MarkdownLd will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-08-25
+
+### Added
+- Diff/merge foundations: Change, Patch, Conflict, MergeResult, StreamEvent
+- Block-level diff with inline token ops and similarity-based updates
+- Combined diff API: `MarkdownLd.diff/3`
+- Streaming diff with paragraph/heading chunking, stable IDs, deletions
+- High-level merge API: `MarkdownLd.Merge.merge_texts/4`
+- JSON-LD extraction (code fences, frontmatter) with basic context expansion
+- Conflict formatter (text + map) for UI
+- SPEC.md draft (Markdown-LD Profile v0.1)
+ - Rename-aware heading alignment in streaming (fuzzy match)
+ - Inline preview renderer for ops (`MarkdownLd.Diff.Preview`)
+ - QCPrompt parser and stream helpers (`QCP.parse/1`, `QCP.Stream.process/1`) with tests
+
+### Changed
+- README updates and internal refactors for patch application
+
+### Notes
+- JSON-LD handling is pragmatic; full 1.1 (remote contexts, expansion/flattening) is future work.
+
 ## [0.3.0] - 2025-01-20
 
 ### Added

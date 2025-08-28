@@ -20,7 +20,7 @@ defmodule MarkdownLd do
   ## Quick Start
   
       # Add to your mix.exs
-      {:markdown_ld, "~> 0.3.0"}
+      {:markdown_ld, "~> 0.4.0"}
       
       # Basic parsing
       {:ok, result} = MarkdownLd.parse("# Hello World")
@@ -365,5 +365,52 @@ defmodule MarkdownLd do
       cache_patterns: true,
       track_performance: true
     ]
+  end
+
+  # ——— Diff API (composed) ———
+
+  @doc """
+  Compute a combined patch between two markdown strings.
+
+  Produces a `MarkdownLd.Diff.Patch` with changes from:
+  - Block-level diff (insert/delete/update, with inline ops for text blocks)
+  - JSON-LD semantic diff (add/remove/update triples)
+
+  Options:
+  - `:from_rev` / `:to_rev` — optional revision identifiers; defaults to content hashes
+  - `:similarity_threshold` — inline update coalescing threshold (default: 0.5)
+  - `:meta` — optional patch metadata map
+  """
+  @spec diff(String.t(), String.t(), keyword()) :: {:ok, MarkdownLd.Diff.Patch.t()}
+  def diff(old_text, new_text, opts \\ []) when is_binary(old_text) and is_binary(new_text) do
+    from_rev = Keyword.get(opts, :from_rev, content_rev(old_text))
+    to_rev = Keyword.get(opts, :to_rev, content_rev(new_text))
+    meta = Keyword.get(opts, :meta, %{})
+
+    sim = Keyword.get(opts, :similarity_threshold, 0.5)
+
+    block_changes = MarkdownLd.Diff.Block.diff(old_text, new_text, similarity_threshold: sim)
+    jsonld_changes = MarkdownLd.JSONLD.diff(old_text, new_text)
+
+    # Session and WASM sidecar diffs integrated as change kinds
+    session_changes =
+      MarkdownLd.Sessions.diff(old_text, new_text)
+      |> Enum.map(fn %{kind: k, payload: p} ->
+        MarkdownLd.Diff.change(k, nil, p)
+      end)
+
+    wasm_changes =
+      MarkdownLd.WASM.diff(old_text, new_text)
+      |> Enum.map(fn %{kind: k, payload: p} ->
+        MarkdownLd.Diff.change(k, nil, p)
+      end)
+
+    changes = block_changes ++ jsonld_changes ++ session_changes ++ wasm_changes
+
+    {:ok, MarkdownLd.Diff.patch(from_rev, to_rev, changes, Map.merge(%{message: "diff"}, meta))}
+  end
+
+  defp content_rev(text) do
+    :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)
   end
 end

@@ -24,7 +24,7 @@ Add to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:markdown_ld, "~> 0.3.0"}
+    {:markdown_ld, "~> 0.4.0"}
   ]
 end
 ```
@@ -70,6 +70,16 @@ IO.inspect(result.tasks)
 - **Task lists** - GitHub-style checkboxes
 - **Word counting** - SIMD-optimized text analysis
 
+### Diff & Merge (Foundations)
+- **Diff data model** for structure-aware markdown changes
+- **JSON-LD semantic ops** types (add/remove/update triples)
+- **Three-way merge skeleton** with conflict detection
+- **Streaming event schema** for real-time patching
+- **Inline diff ops** for text updates within blocks
+- **JSON-LD stub extractor** with triple-level diff
+  - Supports code fences (```json-ld) and simple frontmatter `jsonld: { ... }`
+  - Basic context expansion: `@vocab`, prefixes, and term definitions map to IRIs
+
 ### Performance Optimizations
 - **Zero-copy processing** - Direct binary manipulation
 - **SIMD acceleration** - Vectorized pattern matching
@@ -108,6 +118,101 @@ IO.inspect(stats)
 
 # Reset counters
 MarkdownLd.reset_performance_stats()
+```
+
+## 🔀 Diffing
+
+```elixir
+old = """
+# Title
+
+Hello world
+
+JSONLD: post:1, schema:name, Hello
+"""
+
+new = """
+# Title
+
+Hello brave new world
+
+JSONLD: post:1, schema:name, Hello World
+JSONLD: post:1, schema:author, Alice
+"""
+
+{:ok, patch} = MarkdownLd.diff(old, new, similarity_threshold: 0.5)
+IO.inspect(Enum.map(patch.changes, & &1.kind))
+# [:update_block, :jsonld_update, :jsonld_add]
+```
+
+### Streaming Diffs
+
+```elixir
+old = """
+# Title
+
+Para one
+
+JSONLD: post:1, schema:name, Hello
+"""
+
+new = """
+# Title
+
+Para one updated
+
+JSONLD: post:1, schema:name, Hello World
+"""
+
+events = MarkdownLd.Diff.Stream.emit(old, new, max_paragraphs: 2)
+# => [%StreamEvent{type: :init_snapshot, ...}, %StreamEvent{type: :chunk_patch, ...}, %StreamEvent{type: :complete, ...}]
+
+{:ok, rebuilt} = MarkdownLd.Diff.Stream.apply_events(old, events, max_paragraphs: 2)
+
+### Heading-Level Chunking
+
+```elixir
+# Chunk by H1 sections (default), align by stable heading IDs
+events = MarkdownLd.Diff.Stream.emit(old, new,
+  chunk_strategy: :headings,
+  heading_level: 1,
+  rename_match_threshold: 0.7 # fuzzy-match renamed headings
+)
+
+# Chunk by H2 subsections
+events = MarkdownLd.Diff.Stream.emit(old, new,
+  chunk_strategy: :headings,
+  heading_level: 2
+)
+```
+
+## 🧩 Chunking Strategies
+
+- Paragraphs (default): `chunk_strategy: :paragraphs`, `max_paragraphs: 8`.
+- Headings: `chunk_strategy: :headings` to start a new chunk at each heading; events include a stable_id derived from the heading text.
+
+## ⚔️ Conflict Formatting
+
+```elixir
+merge = MarkdownLd.Diff.three_way_merge(base_patch, our_patch, their_patch)
+if merge.merged == nil do
+  # Present conflicts in UI
+  messages = MarkdownLd.Diff.Format.to_text(merge.conflicts)
+  maps = MarkdownLd.Diff.Format.to_maps(merge.conflicts)
+end
+```
+
+## ✨ Inline Preview
+
+```elixir
+# Given an update_block payload with inline_ops from the diff
+ops = [{:keep, "Hello"}, {:delete, "brave"}, {:insert, "bold"}, {:keep, "world"}]
+MarkdownLd.Diff.Preview.render_ops(ops)
+# "Hello {-brave-} {+bold+} world"
+
+# ANSI style
+MarkdownLd.Diff.Preview.render_ops(ops, style: :ansi)
+```
 ```
 
 ## ⚙️ Configuration
@@ -295,4 +400,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 **MarkdownLd** - Built for production systems that demand extreme performance. 
 
 Developed with ❤️ for the Elixir community.
+## 🔎 Quick Links
 
+- Diff API: `MarkdownLd.diff/3`
+- Merge API: `MarkdownLd.Merge.merge_texts/4`
+- Streaming: `MarkdownLd.Diff.Stream.emit/3` and `apply_events/3`
+- Inline Preview: `MarkdownLd.Diff.Preview.render_ops/2`
+- QCPrompt: `QCP.parse/1`, `QCP.Stream.process/1`
+- Spec: `SPEC.md` (Markdown-LD Profile v0.3)
