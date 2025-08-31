@@ -13,7 +13,7 @@ defmodule MarkdownLd.WASM do
 
   alias MarkdownLd.JCS
 
-  @type module :: %{
+  @type wasm_module :: %{
           kind: :module | :config,
           id: String.t(),
           hash: String.t() | nil,
@@ -21,7 +21,7 @@ defmodule MarkdownLd.WASM do
           line: non_neg_integer()
         }
 
-  @spec extract(String.t()) :: [module()]
+  @spec extract(String.t()) :: [wasm_module()]
   def extract(text) when is_binary(text) do
     lines = String.split(text, "\n", trim: false)
     do_extract(lines, 1, [], nil, nil)
@@ -112,6 +112,26 @@ defmodule MarkdownLd.WASM do
         %{kind: :wasm_update, payload: %{before: sa, after: sb}}
       end
     removed ++ updated ++ added
+  end
+
+
+  @doc """
+  Map extracted WASM modules to JSON-LD nodes (wasm/ + schema/ contexts).
+  """
+  @spec to_jsonld(String.t()) :: [map()]
+  def to_jsonld(text) do
+    extract(text)
+    |> Enum.filter(&(&1.kind == :module))
+    |> Enum.map(fn m ->
+      %{
+        "@id" => m.id,
+        "@type" => "wasm:Module",
+        "schema:encodingFormat" => "application/wasm",
+        "wasm:hash" => m.hash,
+        "wasm:entry" => m.attrs["ldw:entry"],
+        "wasm:policy" => m.attrs["ldw:policy"]
+      }
+    end)
   end
 
   defp index_by_id(list) do

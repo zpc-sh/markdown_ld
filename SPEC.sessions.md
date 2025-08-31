@@ -94,3 +94,60 @@ Note: Message framing is transport-specific on the proxy (binary payload streami
 - L3 (this doc): recognize `session` fences with `lds:*` attributes; implement server-mediated connect flow.
 - L2/L1: treat session fences as inert code blocks.
 
+## 9. Terminal Graphics Extension (TGX v1) — Optional
+
+Status: Sidecar extension for graphics frames within recorded/live sessions. Backwards compatible; unknown `fmt` values are ignored by default.
+
+### 9.1 Envelope (Recorded)
+
+Graphics frames are JSON events in the session payload:
+
+```
+{ "t": <seconds>, "k": "g", "fmt": "png|sixel|tgx-hdr10", "data_b64": "...", "w": 800, "h": 600, "meta": { ... } }
+```
+
+External reference (policy-permitting):
+```
+{ "t": <seconds>, "k": "g", "fmt": "png|tgx-hdr10", "contentUrl": "https://...", "sha256": "...", "w": 800, "h": 600 }
+```
+
+Fields:
+- `t`: seconds from session start (float)
+- `k`: kind = `"g"` for graphics
+- `fmt`: `"png"` (baseline sRGB), `"sixel"` (terminal graphics), `"tgx-hdr10"` (HDR sidecar)
+- `data_b64` or (`contentUrl` + `sha256`): frame bytes
+- `w`/`h`: frame dimensions in pixels (optional for sixel)
+- `meta`: optional format-specific metadata
+
+### 9.2 Live Capability Negotiation
+
+- Fence attribute: `ldt:cap=interactive,graphics` advertises author intent.
+- Client hello (first message): `{"type":"hello","caps":{"graphics":["png","sixel","tgx-hdr10"]}}`
+- Viewers gate decoding on policy + caps (default: disabled).
+
+### 9.3 Determinism
+
+- `frame_hash = sha256(raw_frame_bytes)` (hex, lowercase)
+- `events_hash` includes both text and graphics (JCS of canonical events array)
+- Session `hash` changes if any frame/text differs in bytes or order
+
+### 9.4 Limits & Safety
+
+- Max frame size: 256KB (configurable)
+- Max frames/minute: 120 (configurable)
+- Max dimensions: 2000×2000; downscale or reject
+- No network by default; `contentUrl` allowed only if org policy permits
+- Errors: `:graphics_unsupported`, `:image_too_large`, `:frame_rate_limit`
+
+### 9.5 Diff Semantics
+
+- Add/remove/reorder frames → `:session_update` (before/after hashes)
+- Graphics-only updates (text unchanged) still update the session hash
+
+### 9.6 Formats
+
+- `png` (baseline): 8‑bit sRGB PNG; simplest offline rendering
+- `sixel` (terminal): raw Sixel bytes in `data_b64`; render inline in PTY when supported
+- `tgx-hdr10` (opt‑in): same `data_b64` plus `meta`:
+  - `meta.colorspace="BT.2020"`, `meta.transfer="PQ"`, `meta.maxCLL`, `meta.maxFALL`, optional `meta.icc_b64`
+  - Clients without HDR support tone‑map to sRGB or ignore

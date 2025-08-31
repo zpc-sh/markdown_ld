@@ -1,0 +1,18 @@
+[package]
+name = "markdown_ld_core"
+version = "0.1.0"
+edition = "2021"
+authors = ["NOCSI"]
+description = "Core parsing utilities for Markdown-LD (pure Rust, no NIFs)"
+license = "MIT"
+
+[lib]
+name = "markdown_ld_core"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+pulldown-cmark = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.10"

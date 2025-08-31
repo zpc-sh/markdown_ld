@@ -1,0 +1,20 @@
+{
+  "@context": {
+    "@vocab": "https://example.org/tgx#",
+    "schema": "https://schema.org/",
+    "tgx": "https://example.org/tgx#",
+
+    "Frame": "tgx:Frame",
+    "format": "tgx:format",
+    "data_b64": "tgx:data_b64",
+    "contentUrl": {
+      "@id": "tgx:contentUrl",
+      "@type": "@id"
+    },
+    "sha256": "tgx:sha256",
+    "w": "tgx:w",
+    "h": "tgx:h",
+    "t": "tgx:t",
+    "meta": "tgx:meta"
+  }
+}

@@ -140,6 +140,38 @@ defmodule MarkdownLd.Sessions do
     removed ++ updated ++ added
   end
 
+
+  @doc """
+  Map extracted sessions to JSON-LD nodes using the sess/ and schema/ contexts.
+  This is a lightweight projection for graph consumers.
+  """
+  @spec to_jsonld(String.t()) :: [map()]
+  def to_jsonld(text) do
+    extract(text)
+    |> Enum.map(fn s ->
+      %{
+        "@id" => (s.id || "_:#" <> Integer.to_string(s.line)),
+        "@type" => "sess:Session",
+        "schema:encodingFormat" => enc_fmt(s.kind),
+        "sess:hash" => s.hash,
+        "sess:line" => s.line,
+        "sess:mode" => Map.get(s.attrs, "ldt:mode"),
+        "sess:cap" => caps_from_attrs(s.attrs)
+      }
+    end)
+  end
+
+  defp enc_fmt(:asciinema), do: "application/asciinema+json"
+  defp enc_fmt(:terminal_session), do: "application/terminal-session+json"
+  defp enc_fmt(:live), do: "session/live"
+
+  defp caps_from_attrs(attrs) do
+    case Map.get(attrs, "ldt:cap") do
+      nil -> []
+      caps -> caps |> String.split(",") |> Enum.map(&String.trim/1)
+    end
+  end
+
   defp index_by_id(list) do
     list
     |> Enum.filter(& &1.id)

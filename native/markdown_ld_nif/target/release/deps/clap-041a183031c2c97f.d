@@ -1,0 +1,9 @@
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/libclap-041a183031c2c97f.rmeta: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.md
+
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/libclap-041a183031c2c97f.rlib: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.md
+
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/clap-041a183031c2c97f.d: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.md
+
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/lib.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.5.45/src/../examples/demo.md:

@@ -21,3 +21,25 @@ markdown_ld-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+.claude
+
+# macOS
+.DS_Store
+
+# Elixir tooling
+.elixir_ls/
+
+# Rust/Rustler native build outputs
+# All Cargo build artifacts
+native/**/target/
+native/target/
+
+# Any transient build caches accidentally created under native
+native/**/true/
+native/true/
+
+# Compiled NIFs and native shared libraries
+priv/native/*.so
+priv/native/*.dylib
+priv/native/*.dll

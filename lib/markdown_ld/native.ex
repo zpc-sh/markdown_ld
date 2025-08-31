@@ -24,4 +24,7 @@ defmodule MarkdownLd.Native do
   def get_performance_stats(), do: :erlang.nif_error(:nif_not_loaded)
   def reset_performance_stats(), do: :erlang.nif_error(:nif_not_loaded)
   def clear_pattern_cache(), do: :erlang.nif_error(:nif_not_loaded)
+
+  # Experimental: parse attribute object via Rust core, returns {:ok, json_string} or {:error, reason}
+  def parse_attr_object_json(_content), do: :erlang.nif_error(:nif_not_loaded)
 end

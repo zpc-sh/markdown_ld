@@ -1,0 +1,13 @@
+{
+  "@context": {
+    "@vocab": "https://example.org/wasm#",
+    "schema": "https://schema.org/",
+    "wasm": "https://example.org/wasm#",
+
+    "Module": "wasm:Module",
+    "entry": "wasm:entry",
+    "policy": "wasm:policy",
+    "hash": "wasm:hash",
+    "encodingFormat": "schema:encodingFormat"
+  }
+}

@@ -1,0 +1,9 @@
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/libzerofrom-88d799fd0681320d.rmeta: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/macro_impls.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/zero_from.rs
+
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/libzerofrom-88d799fd0681320d.rlib: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/macro_impls.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/zero_from.rs
+
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/zerofrom-88d799fd0681320d.d: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/macro_impls.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/zero_from.rs
+
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/lib.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/macro_impls.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.6/src/zero_from.rs:

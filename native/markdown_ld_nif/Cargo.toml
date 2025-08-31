@@ -11,6 +11,7 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+markdown_ld_core = { path = "../markdown_ld_core", version = "0.1.0" }
 rustler = "0.34.0"
 pulldown-cmark = "0.9"
 serde = { version = "1.0", features = ["derive"] }

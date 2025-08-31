@@ -11,7 +11,7 @@ defmodule MarkdownLd.JSONLD.Expand do
   - Coerces values with `@type: @id` to `{"@id": iri}`
   """
 
-  @type ctx :: %{vocab: String.t() | nil, prefixes: map(), terms: map()}
+  @type ctx :: %{vocab: String.t() | nil, prefixes: map(), terms: map(), base: String.t() | nil}
 
   @spec expand(any()) :: any()
   def expand(data) do
@@ -28,6 +28,15 @@ defmodule MarkdownLd.JSONLD.Expand do
   def expand(data, init_ctx) do
     base = build_ctx(init_ctx)
     do_expand(data, base)
+  end
+
+  @doc """
+  Expand with an initial JSON-LD context and base IRI for relative resolution.
+  """
+  @spec expand(any(), any(), String.t() | nil) :: any()
+  def expand(data, init_ctx, base_iri) do
+    base = build_ctx(init_ctx)
+    do_expand(data, %{base | base: base_iri || base.base})
   end
 
   defp do_expand(list, ctx) when is_list(list), do: Enum.map(list, &do_expand(&1, ctx))
@@ -57,7 +66,7 @@ defmodule MarkdownLd.JSONLD.Expand do
   end
 
   defp ctx_from(%{vocab: _} = c), do: c
-  defp ctx_from(_), do: %{vocab: nil, prefixes: %{}, terms: %{}}
+  defp ctx_from(_), do: %{vocab: nil, prefixes: %{}, terms: %{}, base: nil}
 
   defp build_ctx(list) when is_list(list) do
     Enum.reduce(list, ctx_from(%{}), fn elem, acc ->
@@ -69,6 +78,7 @@ defmodule MarkdownLd.JSONLD.Expand do
       kk = to_string(k)
       cond do
         kk == "@vocab" and is_binary(v) -> %{acc | vocab: v}
+        kk == "@base" and is_binary(v) -> %{acc | base: v}
         is_binary(v) -> put_term_or_prefix(acc, kk, v)
         is_map(v) -> put_term_def(acc, kk, v)
         true -> acc
@@ -78,7 +88,7 @@ defmodule MarkdownLd.JSONLD.Expand do
   defp build_ctx(_), do: ctx_from(%{})
 
   defp merge_ctx(a, b) do
-    %{vocab: b.vocab || a.vocab, prefixes: Map.merge(a.prefixes, b.prefixes), terms: Map.merge(a.terms, b.terms)}
+    %{vocab: b.vocab || a.vocab, prefixes: Map.merge(a.prefixes, b.prefixes), terms: Map.merge(a.terms, b.terms), base: b.base || a.base}
   end
 
   defp put_term_or_prefix(acc, key, val) do
@@ -127,9 +137,20 @@ defmodule MarkdownLd.JSONLD.Expand do
         [prefix, local] = String.split(iri, ":", parts: 2)
         base = ctx.prefixes[prefix]
         if base, do: base <> local, else: iri
-      ctx.vocab -> ctx.vocab <> iri
+      ctx.vocab and not String.starts_with?(iri, ["/", "#"]) -> ctx.vocab <> iri
+      ctx.base -> join_base(ctx.base, iri)
       true -> iri
     end
   end
   defp expand_iri(other, _ctx), do: other
+
+  defp join_base(base, rel) do
+    # naive join: if rel starts with '#' or '/', append appropriately; else join with '/'
+    cond do
+      String.starts_with?(rel, ["http://", "https://"]) -> rel
+      String.starts_with?(rel, "#") -> base <> rel
+      String.ends_with?(base, "/") -> base <> rel
+      true -> base <> "/" <> rel
+    end
+  end
 end

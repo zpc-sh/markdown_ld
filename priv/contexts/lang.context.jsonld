@@ -1,0 +1,15 @@
+{
+  "@context": {
+    "@vocab": "https://example.org/lang#",
+    "schema": "https://schema.org/",
+    "lang": "https://example.org/lang#",
+
+    "Method": "lang:Method",
+    "status": "lang:status",
+    "priority": "lang:priority",
+    "impl": {
+      "@id": "lang:impl",
+      "@type": "@id"
+    }
+  }
+}

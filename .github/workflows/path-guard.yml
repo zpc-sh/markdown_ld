@@ -1,0 +1,34 @@
+name: Path Guard
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check modified files against allowed sidecar paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_ref="${{ github.base_ref }}"
+          if [ -z "$base_ref" ]; then base_ref="origin/main"; fi
+          git fetch origin "$base_ref":"$base_ref" >/dev/null 2>&1 || true
+          CHANGED=$(git diff --name-only "$base_ref"...HEAD || true)
+          echo "$CHANGED" | sed '/^$/d' > changed.txt || true
+          echo "Changed files:" && cat changed.txt || true
+          # Allowed sidecar paths (bypass guard)
+          ALLOW_RE='^(doc/fixtures|examples|SPEC\.(sessions|diagrams|wasm)\.md|priv/contexts/|lib/markdown_ld/(sessions|wasm|contexts)\.ex)'
+          # Core paths that must be CODEOWNER-reviewed
+          CORE_RE='^(lib/markdown_ld/jsonld|lib/markdown_ld/diff|native/|SPEC\.md)'
+          # If only allowed paths changed, pass; if core paths changed, rely on CODEOWNERS; else fail
+          ONLY_ALLOWED=$(grep -Ev "$CORE_RE" changed.txt | grep -Ev "$ALLOW_RE" || true)
+          if [ -n "$ONLY_ALLOWED" ]; then
+            echo "Blocked changes (outside allowed sidecar paths and core):"
+            echo "$ONLY_ALLOWED"
+            exit 1
+          fi
+          echo "Path guard passed."

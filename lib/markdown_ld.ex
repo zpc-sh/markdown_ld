@@ -392,18 +392,22 @@ defmodule MarkdownLd do
     block_changes = MarkdownLd.Diff.Block.diff(old_text, new_text, similarity_threshold: sim)
     jsonld_changes = MarkdownLd.JSONLD.diff(old_text, new_text)
 
-    # Session and WASM sidecar diffs integrated as change kinds
-    session_changes =
-      MarkdownLd.Sessions.diff(old_text, new_text)
-      |> Enum.map(fn %{kind: k, payload: p} ->
-        MarkdownLd.Diff.change(k, nil, p)
-      end)
+    include_sidecars = Keyword.get(opts, :include_sidecars, true)
 
-    wasm_changes =
-      MarkdownLd.WASM.diff(old_text, new_text)
-      |> Enum.map(fn %{kind: k, payload: p} ->
-        MarkdownLd.Diff.change(k, nil, p)
-      end)
+    {session_changes, wasm_changes} =
+      if include_sidecars do
+        session_changes =
+          MarkdownLd.Sessions.diff(old_text, new_text)
+          |> Enum.map(fn %{kind: k, payload: p} -> MarkdownLd.Diff.change(k, nil, p) end)
+
+        wasm_changes =
+          MarkdownLd.WASM.diff(old_text, new_text)
+          |> Enum.map(fn %{kind: k, payload: p} -> MarkdownLd.Diff.change(k, nil, p) end)
+
+        {session_changes, wasm_changes}
+      else
+        {[], []}
+      end
 
     changes = block_changes ++ jsonld_changes ++ session_changes ++ wasm_changes
 

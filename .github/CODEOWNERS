@@ -1,0 +1,16 @@
+# Core files require core-team review
+lib/markdown_ld/jsonld* @core-team
+lib/markdown_ld/diff* @core-team
+native/** @core-team
+SPEC.md @core-team
+
+# Sidecar areas are open for broader contributions
+doc/fixtures/** @*
+examples/** @*
+SPEC.sessions.md @*
+SPEC.diagrams.md @*
+SPEC.wasm.md @*
+priv/contexts/** @*
+lib/markdown_ld/sessions.ex @*
+lib/markdown_ld/wasm.ex @*
+lib/markdown_ld/contexts.ex @*

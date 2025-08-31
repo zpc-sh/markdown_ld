@@ -598,6 +598,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "markdown_ld_core"
+version = "0.1.0"
+dependencies = [
+ "pulldown-cmark",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "markdown_ld_nif"
 version = "0.3.0"
 dependencies = [
@@ -608,6 +618,7 @@ dependencies = [
  "indexmap",
  "lazy_static",
  "lru",
+ "markdown_ld_core",
  "memchr",
  "proptest",
  "pulldown-cmark",

@@ -22,13 +22,16 @@ defmodule MarkdownLd.JSONLD do
   """
   @spec extract_triples(String.t()) :: [triple()]
   def extract_triples(text) do
-    {fm_ctx, _ld} = parse_frontmatter(text)
-    fence_triples = extract_from_fences(text, fm_ctx)
-    fm_triples = extract_from_frontmatter(text, fm_ctx)
+    {fm_ctx, ld} = parse_frontmatter(text)
+    base = ld["base"] || ld[:base]
+    doc_subject = ld["subject"] || ld[:subject]
+    fence_triples = extract_from_fences(text, fm_ctx, base)
+    fm_triples = extract_from_frontmatter(text, fm_ctx, base)
     stub_triples = extract_from_stub_lines(text)
-    attr_triples = extract_from_attribute_objects(text, fm_ctx)
-    inline_triples = extract_from_inline_attrs(text, fm_ctx)
-    fence_triples ++ fm_triples ++ stub_triples ++ attr_triples ++ inline_triples
+    attr_triples = extract_from_attribute_objects(text, fm_ctx, base)
+    inline_triples = extract_from_inline_attrs(text, fm_ctx, base, doc_subject)
+    table_triples = extract_from_tables(text, fm_ctx, base, doc_subject)
+    fence_triples ++ fm_triples ++ stub_triples ++ attr_triples ++ inline_triples ++ table_triples
   end
 
   @doc """
@@ -108,31 +111,31 @@ defmodule MarkdownLd.JSONLD do
 
   @fence_langs MapSet.new(["json", "json-ld", "jsonld", "application/ld+json"])
 
-  defp extract_from_fences(text, fm_ctx) do
+  defp extract_from_fences(text, fm_ctx, base) do
     lines = String.split(text, "\n", trim: false)
-    do_fences(lines, nil, [], fm_ctx) |> List.flatten()
+    do_fences(lines, nil, [], fm_ctx, base) |> List.flatten()
   end
 
-  defp do_fences([], _state, acc, _fm_ctx), do: Enum.reverse(acc)
-  defp do_fences([line | rest], {:in, lang, buf}, acc, fm_ctx) do
+  defp do_fences([], _state, acc, _fm_ctx, _base), do: Enum.reverse(acc)
+  defp do_fences([line | rest], {:in, lang, buf}, acc, fm_ctx, base) do
     cond do
       fence?(line) ->
         json = Enum.join(Enum.reverse(buf), "\n")
-        triples = parse_jsonld_to_triples(json, fm_ctx)
-        do_fences(rest, nil, [triples | acc], fm_ctx)
+        triples = parse_jsonld_to_triples(json, fm_ctx, base)
+        do_fences(rest, nil, [triples | acc], fm_ctx, base)
       true ->
-        do_fences(rest, {:in, lang, [line | buf]}, acc, fm_ctx)
+        do_fences(rest, {:in, lang, [line | buf]}, acc, fm_ctx, base)
     end
   end
-  defp do_fences([line | rest], nil, acc, fm_ctx) do
+  defp do_fences([line | rest], nil, acc, fm_ctx, base) do
     case fence_lang(line) do
       {:fence, lang} ->
         if MapSet.member?(@fence_langs, String.downcase(lang)) do
-          do_fences(rest, {:in, lang, []}, acc, fm_ctx)
+          do_fences(rest, {:in, lang, []}, acc, fm_ctx, base)
         else
-          do_fences(rest, nil, acc, fm_ctx)
+          do_fences(rest, nil, acc, fm_ctx, base)
         end
-      _ -> do_fences(rest, nil, acc, fm_ctx)
+      _ -> do_fences(rest, nil, acc, fm_ctx, base)
     end
   end
 
@@ -147,29 +150,36 @@ defmodule MarkdownLd.JSONLD do
 
   defp parse_jsonld_to_triples(json, fm_ctx \\ %{}) do
     case Jason.decode(json) do
-      {:ok, data} -> parse_data_to_triples(data, fm_ctx)
+      {:ok, data} -> parse_data_to_triples(data, fm_ctx, nil)
       _ -> []
     end
   end
 
-  defp parse_data_to_triples(data, fm_ctx) do
+  defp parse_jsonld_to_triples(json, fm_ctx, base) do
+    case Jason.decode(json) do
+      {:ok, data} -> parse_data_to_triples(data, fm_ctx, base)
+      _ -> []
+    end
+  end
+
+  defp parse_data_to_triples(data, fm_ctx, _base) do
     expanded = MarkdownLd.JSONLD.Expand.expand(data, fm_ctx || %{})
     triples_from_jsonld(expanded)
   end
 
-  defp extract_from_frontmatter(text, fm_ctx) do
+  defp extract_from_frontmatter(text, fm_ctx, base) do
     case Regex.run(~r/\A---\s*\n([\s\S]*?)\n---\s*(?:\n|\z)/, text) do
       nil -> []
       [_, fm] ->
         # Legacy support: jsonld: { ... }
         case Regex.run(~r/jsonld:\s*(\{[\s\S]*\})/i, fm) do
-          [_, json] -> parse_jsonld_to_triples(json, fm_ctx)
+          [_, json] -> parse_jsonld_to_triples(json, fm_ctx, base)
           _ ->
             # Attempt YAML parse for jsonld map/list
             {fm_map, _ld} = parse_frontmatter(text)
             case fm_map["jsonld"] || fm_map[:jsonld] do
               nil -> []
-              data -> parse_data_to_triples(data, fm_ctx)
+              data -> parse_data_to_triples(data, fm_ctx, base)
             end
         end
     end
@@ -191,54 +201,56 @@ defmodule MarkdownLd.JSONLD do
   end
 
   # ——— Inline Attribute Lists on Headings/Links/Images ———
-  defp extract_from_inline_attrs(text, fm_ctx) do
+  defp extract_from_inline_attrs(text, fm_ctx, base, doc_subject) do
     lines = String.split(text, "\n", trim: false)
-    do_inline(lines, %{subjects: %{}, cur: nil}, fm_ctx, []) |> List.flatten()
+    do_inline(lines, %{subjects: %{}, cur: doc_subject}, fm_ctx, base, []) |> List.flatten()
   end
 
-  defp do_inline([], _state, _ctx, acc), do: Enum.reverse(acc)
-  defp do_inline([line | rest], %{subjects: subs} = state, ctx, acc) do
+  defp do_inline([], _state, _ctx, _base, acc), do: Enum.reverse(acc)
+  defp do_inline([line | rest], %{subjects: subs} = state, ctx, base, acc) do
     cond do
       # Heading with trailing attrs
-      m = Regex.run(~r/^\s*(#{1,6})\s+(.+?)\s*\{([^}]*)\}\s*$/, line, capture: :all_but_first) ->
-        [hashes, _text, attrs] = m
+      m = Regex.run(~r/^\s*(#\{1,6\})\s+(.+?)\s*\{([^}]*)\}\s*$/, line, capture: :all_but_first) ->
+        [hashes, text, attrs] = m
         level = String.length(hashes)
         attrs_map = parse_attrs(attrs)
-        subj = attrs_map["ld:@id"] || state.cur || nil
+        slug = MarkdownLd.Determinism.slug(text || "")
+        fallback = base_subject(base, slug)
+        subj = attrs_map["ld:@id"] || state.cur || fallback
         # Update subject stack
         subjects = Map.put(subs, level, subj)
         cur = subj || state.cur
         triples =
-          emit_heading_triples(cur, attrs_map, ctx)
-        do_inline(rest, %{subjects: subjects, cur: cur}, ctx, [triples | acc])
+          emit_heading_triples(cur, attrs_map, ctx, base)
+        do_inline(rest, %{subjects: subjects, cur: cur}, ctx, base, [triples | acc])
 
       # Link with attrs: [text](url){...}
       m = Regex.run(~r/\[([^\]]+)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) ->
         [text1, url, attrs] = m
         _ = text1
         attrs_map = parse_attrs(attrs)
-        triples = emit_link_image_triples(state.cur, url, attrs_map, ctx)
-        do_inline(rest, state, ctx, [triples | acc])
+        triples = emit_link_image_triples(state.cur, url, attrs_map, ctx, base)
+        do_inline(rest, state, ctx, base, [triples | acc])
 
       # Image with attrs: ![alt](src){...}
       m = Regex.run(~r/!\[([^\]]*)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) ->
         [alt, src, attrs] = m
         _ = alt
         attrs_map = parse_attrs(attrs)
-        triples = emit_link_image_triples(state.cur, src, attrs_map, ctx)
-        do_inline(rest, state, ctx, [triples | acc])
+        triples = emit_link_image_triples(state.cur, src, attrs_map, ctx, base)
+        do_inline(rest, state, ctx, base, [triples | acc])
 
       true ->
-        do_inline(rest, state, ctx, acc)
+        do_inline(rest, state, ctx, base, acc)
     end
   end
 
-  defp emit_heading_triples(nil, _attrs_map, _ctx), do: []
-  defp emit_heading_triples(subject, attrs_map, ctx) do
+  defp emit_heading_triples(nil, _attrs_map, _ctx, _base), do: []
+  defp emit_heading_triples(subject, attrs_map, ctx, base) do
     types =
       case attrs_map["ld:@type"] do
         nil -> []
-        v when is_binary(v) and String.starts_with?(String.trim(v), "[") ->
+        v when is_binary(v) ->
           case Jason.decode(v) do
             {:ok, list} when is_list(list) -> list
             _ -> [v]
@@ -251,22 +263,49 @@ defmodule MarkdownLd.JSONLD do
       []
     else
       obj = %{"@id" => subject, "@type" => types}
-      obj |> MarkdownLd.JSONLD.Expand.expand(ctx || %{}) |> triples_from_jsonld()
+      expanded = case base do
+        nil -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{})
+        _ -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{}, base)
+      end
+      triples_from_jsonld(expanded)
     end
   end
 
-  defp emit_link_image_triples(nil, _url, _attrs_map, _ctx), do: []
-  defp emit_link_image_triples(subject, url, attrs_map, ctx) do
+  defp emit_link_image_triples(nil, _url, _attrs_map, _ctx, _base), do: []
+  defp emit_link_image_triples(subject, url, attrs_map, ctx, base) do
     prop = attrs_map["ld:prop"]
     cond do
       is_nil(prop) -> []
       v = attrs_map["ld:value"] ->
         value = build_literal(v, attrs_map)
         obj = %{"@id" => subject, prop => value}
-        obj |> MarkdownLd.JSONLD.Expand.expand(ctx || %{}) |> triples_from_jsonld()
+        expanded = case base do
+          nil -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{})
+          _ -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{}, base)
+        end
+        triples_from_jsonld(expanded)
       true ->
-        obj = %{"@id" => subject, prop => [%{"@id" => url}]} # list to be permissive
-        obj |> MarkdownLd.JSONLD.Expand.expand(ctx || %{}) |> triples_from_jsonld()
+        obj = %{"@id" => subject, prop => [%{"@id" => url}]}
+        expanded = case base do
+          nil -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{})
+          _ -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{}, base)
+        end
+        triples_from_jsonld(expanded)
+    end
+  end
+
+  defp base_subject(nil, slug) do
+    if slug == "", do: nil, else: slug
+  end
+  defp base_subject(base, slug) do
+    if slug == "" do
+      nil
+    else
+      if String.ends_with?(base, ["/", "#"]) do
+        base <> slug
+      else
+        base <> "#" <> slug
+      end
     end
   end
 
@@ -301,6 +340,111 @@ defmodule MarkdownLd.JSONLD do
     |> Enum.map(&to_string/1)
   end
 
+  # ——— Tables ({ld:table=properties}) ———
+  defp extract_from_tables(text, fm_ctx, base, doc_subject) do
+    lines = String.split(text, "\n", trim: false)
+    do_tables(lines, 0, fm_ctx, base, doc_subject, []) |> List.flatten()
+  end
+
+  defp do_tables([], _i, _ctx, _base, _doc_subj, acc), do: Enum.reverse(acc)
+  defp do_tables([line | rest], i, ctx, base, doc_subj, acc) do
+    if table_header?(line) and match?([sep | _] when is_binary(sep), rest) and table_sep?(hd(rest)) do
+      {rows, rem_after_table} = collect_table_rows(tl(rest), [])
+      # check next non-empty line for marker
+      {after_marker, marker?} = consume_until_marker(rem_after_table)
+      triples =
+        if marker? do
+          emit_table_triples([line, hd(rest) | rows], ctx, base, doc_subj)
+        else
+          []
+        end
+      do_tables(after_marker, i + length([line | rows]) + 2, ctx, base, doc_subj, [triples | acc])
+    else
+      do_tables(rest, i + 1, ctx, base, doc_subj, acc)
+    end
+  end
+
+  defp table_header?(line), do: Regex.match?(~r/^\s*\|.*\|\s*$/, line)
+  defp table_sep?(line), do: Regex.match?(~r/^\s*\|\s*:?[-]+:?\s*(\|\s*:?[-]+:?\s*)+\|\s*$/, line)
+
+  defp collect_table_rows([], acc), do: {Enum.reverse(acc), []}
+  defp collect_table_rows([line | rest], acc) do
+    if table_header?(line) do
+      collect_table_rows(rest, [line | acc])
+    else
+      {Enum.reverse(acc), [line | rest]}
+    end
+  end
+
+  defp consume_until_marker(lines) do
+    case Enum.split_while(lines, fn l -> String.trim(l) == "" end) do
+      {blanks, [marker | tail]} ->
+        if String.contains?(marker, "{ld:table=properties}") do
+          {tail, true}
+        else
+          {lines, false}
+        end
+      _ -> {lines, false}
+    end
+  end
+
+  defp emit_table_triples([header_line, _sep_line | row_lines], ctx, base, doc_subj) do
+    headers = split_cells(header_line)
+    Enum.flat_map(row_lines, fn row ->
+      cells = split_cells(row)
+      if length(cells) == 0 do
+        []
+      else
+        row_map = Enum.zip(headers, cells) |> Enum.into(%{})
+        {subj, props_map} =
+          case Map.get(row_map, "@id") do
+            nil -> {doc_subj, Map.delete(row_map, "@id")}
+            id -> {id, Map.delete(row_map, "@id")}
+          end
+        if is_nil(subj) do
+          []
+        else
+          jsonld = %{"@id" => subj}
+          jsonld = Enum.reduce(props_map, jsonld, fn {k, v}, acc -> Map.put(acc, k, parse_cell_value(v)) end)
+          expanded = case base do
+            nil -> MarkdownLd.JSONLD.Expand.expand(jsonld, ctx || %{})
+            _ -> MarkdownLd.JSONLD.Expand.expand(jsonld, ctx || %{}, base)
+          end
+          triples_from_jsonld(expanded)
+        end
+      end
+    end)
+  end
+
+  defp split_cells(line) do
+    line
+    |> String.trim()
+    |> String.trim_leading("|")
+    |> String.trim_trailing("|")
+    |> String.split("|")
+    |> Enum.map(&String.trim/1)
+  end
+
+  defp parse_cell_value(v) do
+    cond do
+      v == nil or v == "" -> ""
+      String.match?(v, ~r/^\".*\"@([A-Za-z0-9-]+)$/) ->
+        [_, val, lang] = Regex.run(~r/^\"(.*)\"@([A-Za-z0-9-]+)$/, v)
+        %{"@value" => val, "@language" => String.downcase(lang)}
+      String.match?(v, ~r/^\".*\"\^\^(.+)$/) ->
+        [_, val, dt] = Regex.run(~r/^\"(.*)\"\^\^(.+)$/, v)
+        %{"@value" => val, "@type" => dt}
+      String.match?(v, ~r/^\<.*\>$/) ->
+        iri = v |> String.trim_leading("<") |> String.trim_trailing(">")
+        %{"@id" => iri}
+      String.match?(v, ~r/^[-+]?[0-9]+$/) -> String.to_integer(v)
+      String.match?(v, ~r/^[-+]?[0-9]*\.[0-9]+$/) -> String.to_float(v)
+      String.downcase(v) in ["true", "false"] -> String.downcase(v) == "true"
+      String.match?(v, ~r/^\".*\"$/) -> v |> String.trim_leading("\"") |> String.trim_trailing("\"")
+      true -> v
+    end
+  end
+
   defp do_attr_tokens([], cur, acc, _q, _b) do
     acc = if cur == [], do: acc, else: [Enum.reverse(cur) | acc]
     Enum.reverse(acc)
@@ -318,19 +462,19 @@ defmodule MarkdownLd.JSONLD do
   end
 
   # ——— Attribute Objects in List Items ———
-  defp extract_from_attribute_objects(text, fm_ctx) do
+  defp extract_from_attribute_objects(text, fm_ctx, base) do
     lines = String.split(text, "\n", trim: false)
-    scan_attr_objects(lines, 0, fm_ctx, []) |> List.flatten()
+    scan_attr_objects(lines, 0, fm_ctx, base, []) |> List.flatten()
   end
 
-  defp scan_attr_objects([], _i, _ctx, acc), do: Enum.reverse(acc)
-  defp scan_attr_objects([line | rest], i, ctx, acc) do
+  defp scan_attr_objects([], _i, _ctx, _base, acc), do: Enum.reverse(acc)
+  defp scan_attr_objects([line | rest], i, ctx, base, acc) do
     case Regex.run(~r/^\s*-\s*\{(.*)$/, line, capture: :all_but_first) do
-      nil -> scan_attr_objects(rest, i + 1, ctx, acc)
+      nil -> scan_attr_objects(rest, i + 1, ctx, base, acc)
       [start] ->
         {body, remaining} = collect_braces([start | rest], 1, [])
-        triples = attr_object_to_triples(Enum.join(body, "\n"), ctx)
-        scan_attr_objects(remaining, i + 1, ctx, [triples | acc])
+        triples = attr_object_to_triples(Enum.join(body, "\n"), ctx, base)
+        scan_attr_objects(remaining, i + 1, ctx, base, [triples | acc])
     end
   end
 
@@ -347,11 +491,14 @@ defmodule MarkdownLd.JSONLD do
 
   defp count_char(str, ch), do: :binary.bin_to_list(str) |> Enum.count(&(&1 == ch))
 
-  defp attr_object_to_triples(body, fm_ctx) do
+  defp attr_object_to_triples(body, fm_ctx, base) do
     case MarkdownLd.AttrObject.parse(body) do
       {:ok, map} ->
         jsonld = attr_map_to_jsonld(map)
-        expanded = MarkdownLd.JSONLD.Expand.expand(jsonld, fm_ctx || %{})
+        expanded = case base do
+          nil -> MarkdownLd.JSONLD.Expand.expand(jsonld, fm_ctx || %{})
+          _ -> MarkdownLd.JSONLD.Expand.expand(jsonld, fm_ctx || %{}, base)
+        end
         triples_from_jsonld(expanded)
       {:error, _} -> []
     end

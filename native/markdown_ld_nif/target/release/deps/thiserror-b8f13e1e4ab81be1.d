@@ -1,0 +1,9 @@
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/libthiserror-b8f13e1e4ab81be1.rmeta: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs
+
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/libthiserror-b8f13e1e4ab81be1.rlib: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs
+
+/Users/locnguyen/src/code/markdown_ld/native/markdown_ld_nif/target/release/deps/thiserror-b8f13e1e4ab81be1.d: /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs /Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs
+
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs:
+/Users/locnguyen/.local/share/mise/installs/rust/1.87.0/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs:

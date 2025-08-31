@@ -1,0 +1,17 @@
+{
+  "@context": {
+    "@vocab": "https://example.org/session#",
+    "schema": "https://schema.org/",
+    "sess": "https://example.org/session#",
+
+    "Session": "sess:Session",
+    "mode": "sess:mode",
+    "cap": "sess:cap",
+    "frame": {
+      "@id": "sess:frame",
+      "@type": "@id"
+    },
+    "hash": "sess:hash",
+    "line": "sess:line"
+  }
+}

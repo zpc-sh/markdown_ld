@@ -44,7 +44,7 @@ defmodule MarkdownLd.AttrObject do
   # ——— Recursive descent ———
 
   defp parse_object(chars, depth, opts) do
-    if depth >= opts[:max_depth], do: {:error, {:limit_exceeded, 0}}, else: :ok
+    (if depth >= opts[:max_depth], do: {:error, {:limit_exceeded, 0}}, else: :ok)
     |> case do
       :ok -> parse_object_entries(skip_ws(chars), %{}, depth, opts)
       err -> err

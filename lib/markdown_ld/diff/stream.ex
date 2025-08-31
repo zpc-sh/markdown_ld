@@ -40,8 +40,8 @@ defmodule MarkdownLd.Diff.Stream do
     |> Enum.with_index()
     |> Enum.map(fn {paras, idx} ->
       content = Enum.join(paras, "\n\n")
-      stable_id = stable_id_for(paras)
-      {idx, content, stable_id}
+      sid = MarkdownLd.Determinism.chunk_id([], idx, content)
+      {idx, content, sid}
     end)
   end
 
@@ -54,8 +54,10 @@ defmodule MarkdownLd.Diff.Stream do
     |> Enum.with_index()
     |> Enum.map(fn {{heading_line, body_lines}, idx} ->
       content = Enum.join(Enum.reject([heading_line | body_lines], &is_nil/1), "\n")
-      stable_id = stable_id_for_heading(heading_line)
-      {idx, content, stable_id}
+      {_lvl, text} = heading_meta(heading_line) || {nil, ""}
+      slug = MarkdownLd.Determinism.slug(text)
+      sid = MarkdownLd.Determinism.chunk_id([slug], idx, content)
+      {idx, content, sid}
     end)
   end
 
@@ -249,8 +251,6 @@ defmodule MarkdownLd.Diff.Stream do
       _ -> nil
     end
   end
-
-  defp stable_id_for_heading(nil), do: stable_id_for([""])
 
   defp stable_id_for_heading(heading_line) do
     {_lvl, text} = heading_meta(heading_line) || {nil, ""}

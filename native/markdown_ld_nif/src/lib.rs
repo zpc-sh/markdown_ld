@@ -1,6 +1,15 @@
 use rustler::{Binary, Env, NifResult, Term, Encoder, Atom};
 use pulldown_cmark::{Parser, Options, Event, Tag, CodeBlockKind, HeadingLevel};
 use std::collections::HashMap;
+use serde_json;
+
+mod simd;
+
+// Performance counters - help Codex track SIMD usage
+use std::sync::atomic::{AtomicU64, Ordering};
+static SIMD_OPS: AtomicU64 = AtomicU64::new(0);
+static CACHE_HITS: AtomicU64 = AtomicU64::new(0);
+static CACHE_MISSES: AtomicU64 = AtomicU64::new(0);
 
 mod atoms {
     rustler::atoms! {
@@ -41,7 +50,8 @@ fn parse_batch_parallel<'a>(env: Env<'a>, documents: Vec<String>, _options: Vec<
 
 #[rustler::nif]
 fn word_count_simd<'a>(env: Env<'a>, content: String) -> Term<'a> {
-    let count = content.split_whitespace().count();
+    SIMD_OPS.fetch_add(1, Ordering::Relaxed);
+    let count = simd::word_count_simd(&content);
     (atoms::ok(), count).encode(env)
 }
 
@@ -71,23 +81,56 @@ fn extract_tasks_simd<'a>(env: Env<'a>, content: String) -> Term<'a> {
 
 #[rustler::nif]
 fn get_performance_stats<'a>(env: Env<'a>) -> Term<'a> {
+    let simd_ops = SIMD_OPS.load(Ordering::Relaxed);
+    let cache_hits = CACHE_HITS.load(Ordering::Relaxed);
+    let cache_misses = CACHE_MISSES.load(Ordering::Relaxed);
+    let total_cache_ops = cache_hits + cache_misses;
+    let hit_rate = if total_cache_ops > 0 {
+        cache_hits as f64 / total_cache_ops as f64
+    } else {
+        0.0
+    };
+    
     let mut stats = HashMap::new();
-    stats.insert("simd_operations".to_string(), 0i64.encode(env));
-    stats.insert("cache_hit_rate".to_string(), 0.0f64.encode(env));
-    stats.insert("memory_pool_usage".to_string(), 0i64.encode(env));
-    stats.insert("pattern_cache_size".to_string(), 0i64.encode(env));
+    stats.insert("simd_operations".to_string(), simd_ops.encode(env));
+    stats.insert("cache_hit_rate".to_string(), hit_rate.encode(env));
+    stats.insert("cache_hits".to_string(), cache_hits.encode(env));
+    stats.insert("cache_misses".to_string(), cache_misses.encode(env));
+    stats.insert("memory_pool_usage".to_string(), 0i64.encode(env)); // TODO: Implement
+    stats.insert("pattern_cache_size".to_string(), 0i64.encode(env)); // TODO: Implement
     
     (atoms::ok(), stats).encode(env)
 }
 
 #[rustler::nif]
 fn reset_performance_stats() -> Atom {
+    SIMD_OPS.store(0, Ordering::Relaxed);
+    CACHE_HITS.store(0, Ordering::Relaxed);
+    CACHE_MISSES.store(0, Ordering::Relaxed);
     atoms::ok()
 }
 
 #[rustler::nif]
 fn clear_pattern_cache() -> Atom {
     atoms::ok()
+}
+
+#[rustler::nif]
+fn parse_attr_object_json<'a>(env: Env<'a>, content: String) -> Term<'a> {
+    // Simple attribute object parser for now - Codex can enhance this later
+    let mut result = HashMap::new();
+    
+    // Basic key=value parsing
+    for pair in content.split_whitespace() {
+        if let Some((key, value)) = pair.split_once('=') {
+            result.insert(key.to_string(), value.trim_matches('"').to_string());
+        }
+    }
+    
+    match serde_json::to_string(&result) {
+        Ok(json_string) => (atoms::ok(), json_string).encode(env),
+        Err(_) => (atoms::error(), "serialization_error").encode(env),
+    }
 }
 
 // Core parsing function
