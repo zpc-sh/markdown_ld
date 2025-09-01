@@ -36,13 +36,9 @@ defmodule MarkdownLd.Fallback do
   defp headings(lines) do
     Enum.with_index(lines, 1)
     |> Enum.reduce([], fn {line, ln}, acc ->
-      case Regex.run(~r/^(#{String.duplicate("#", 1,)}{1,6})\s+(.*)$/, line) do
-        nil ->
-          case Regex.run(~r/^(#+)\s+(.*)$/, line) do
-            [_, hashes, text] -> [%{level: min(String.length(hashes), 6), text: String.trim(text), line: ln} | acc]
-            _ -> acc
-          end
+      case Regex.run(~r/^(#+)\s+(.*)$/, line) do
         [_, hashes, text] -> [%{level: min(String.length(hashes), 6), text: String.trim(text), line: ln} | acc]
+        _ -> acc
       end
     end)
     |> Enum.reverse()
