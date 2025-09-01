@@ -1,0 +1,15 @@
+{
+  "id": "20250831T155000Z-a1b2c3",
+  "from": { "project": "markdown_ld", "agent": "codex" },
+  "type": "proposal",
+  "ref": null,
+  "body": "Proposing the initial dry-run for spec change flow (demo-001). Please review the attached concerns/improvements document for follow-ups.",
+  "attachments": [
+    "attachments/concerns_improvements.md"
+  ],
+  "relates_to": { "request_id": "demo-001" },
+  "status": "open",
+  "created_at": "2025-08-31T15:50:00Z",
+  "updated_at": "2025-08-31T15:50:00Z"
+}
+

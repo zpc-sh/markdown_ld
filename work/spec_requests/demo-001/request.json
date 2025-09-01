@@ -1,0 +1,8 @@
+{
+  "id": "demo-001",
+  "title": "Spec Change Flow Dry Run",
+  "description": "Dry-run a full spec handoff cycle and collect feedback for the other side.",
+  "requested_by": { "project": "markdown_ld", "agent": "core" },
+  "created_at": "2025-08-31T15:50:00Z"
+}
+

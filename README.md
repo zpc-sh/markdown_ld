@@ -80,6 +80,25 @@ IO.inspect(result.tasks)
   - Supports code fences (```json-ld) and simple frontmatter `jsonld: { ... }`
   - Basic context expansion: `@vocab`, prefixes, and term definitions map to IRIs
 
+## 🧩 Native NIFs and Precompiled Binaries
+
+This project uses Rust for performance-critical paths. To keep the Git history clean and builds reproducible:
+
+- We do not commit compiled NIFs to the repo. Files like `priv/native/*.so`, `*.dylib`, `*.dll` are ignored and blocked in CI.
+- Cargo build outputs (e.g., `native/**/target/**`) are ignored and never committed.
+- For distribution, prefer precompiled binaries via `rustler_precompiled`. Host artifacts per target in Releases and fetch them at build time.
+- Track only metadata (e.g., checksums/manifest) in the repo. A common pattern is a JSON manifest under `priv/native/` (for example, `priv/native/checksums.json`). Our ignore rules allow this to be versioned.
+
+Publishing flow (typical):
+- Build NIF artifacts for supported targets (macOS/aarch64/x86_64, Linux glibc/musl variants, etc.).
+- Upload artifacts to a GitHub Release tagged to the library version.
+- Update the checksums/manifest file under `priv/native/` and bump `version` in `mix.exs`.
+- Publish to Hex; clients will download the matching precompiled binary at compile time.
+
+Guardrails:
+- `.gitignore` blocks native blobs and Cargo targets.
+- CI (`Native Artifacts Guard`) fails if any forbidden native artifact is tracked.
+
 ### Performance Optimizations
 - **Zero-copy processing** - Direct binary manipulation
 - **SIMD acceleration** - Vectorized pattern matching
