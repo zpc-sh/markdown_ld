@@ -1,0 +1,15 @@
+{
+  "id": "20250831T160000Z-d3e4f5",
+  "from": { "project": "markdown_ld", "agent": "codex" },
+  "type": "proposal",
+  "ref": { "path": "priv/spec_workflow.json", "json_pointer": "/workflow_version" },
+  "body": "Propose establishing a version flag for the spec workflow to ease coordination and rollout.",
+  "attachments": [
+    "attachments/patch.json"
+  ],
+  "relates_to": { "request_id": "demo-001" },
+  "status": "open",
+  "created_at": "2025-08-31T16:00:00Z",
+  "updated_at": "2025-08-31T16:00:00Z"
+}
+

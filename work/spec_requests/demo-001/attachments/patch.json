@@ -1,0 +1,8 @@
+{
+  "file": "priv/spec_workflow.json",
+  "base_pointer": "/",
+  "ops": [
+    {"op": "replace", "path": "/workflow_version", "value": "0.1"}
+  ]
+}
+
