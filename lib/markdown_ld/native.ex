@@ -6,7 +6,27 @@ defmodule MarkdownLd.Native do
   with SIMD optimizations, memory pooling, and advanced parsing capabilities.
   """
 
-  use Rustler, otp_app: :markdown_ld, crate: "markdown_ld_nif"
+  # Prefer precompiled NIFs when available; fall back to local build via Rustler
+  if Code.ensure_loaded?(RustlerPrecompiled) do
+    use RustlerPrecompiled,
+      otp_app: :markdown_ld,
+      crate: "markdown_ld_nif",
+      # Binaries should be published under this release tag
+      base_url: "https://github.com/nocsi/markdown_ld/releases/download/v0.4.1",
+      version: "0.4.1",
+      force_build: System.get_env("RUSTLER_PRECOMPILED_FORCE_BUILD") in ["1", "true"],
+      targets: [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-musl",
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc"
+      ]
+  else
+    use Rustler, otp_app: :markdown_ld, crate: "markdown_ld_nif"
+  end
 
   # Markdown parsing functions
   def parse_markdown(_content, _options), do: :erlang.nif_error(:nif_not_loaded)

@@ -181,11 +181,11 @@ Notes:
 
 ---
 
-## 🔄 v0.4.0 Release Checklist (Internal)
+## 🔄 v0.4.1 Release Checklist (Internal)
 
 - Versioning
-  - [ ] Ensure `mix.exs` version is `0.4.0` and README examples reference it
-  - [ ] Tag the release `v0.4.0` in Git
+  - [ ] Ensure `mix.exs` version is `0.4.1` and README examples reference it
+  - [ ] Tag the release `v0.4.1` in Git
 - Precompiled NIFs
   - [ ] Run the “Precompile NIFs” workflow (Actions → Precompile NIFs → Release)
   - [ ] Confirm assets are attached for targets:
@@ -199,5 +199,5 @@ Notes:
 - Telemetry & Caching (optional)
   - [ ] Enable `track_performance` and sanity‑check TelemetryAgg summary locally
 - Release
-  - [ ] `mix hex.publish` for 0.4.0 (confirm package contents)
+  - [ ] `mix hex.publish` for 0.4.1 (confirm package contents)
   - [ ] Create GitHub Release notes summarizing major features and performance

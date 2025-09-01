@@ -34,7 +34,7 @@ Add to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:markdown_ld, "~> 0.4.0"}
+      {:markdown_ld, "~> 0.4.1"}
   ]
 end
 ```
