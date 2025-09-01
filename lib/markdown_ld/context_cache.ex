@@ -21,8 +21,11 @@ defmodule MarkdownLd.ContextCache do
         :undefined ->
           val = fun.()
           :persistent_term.put(key, val)
+          MarkdownLd.Telemetry.exec([:markdown_ld, :cache, :context], %{miss: 1}, %{})
           val
-        val -> val
+        val ->
+          MarkdownLd.Telemetry.exec([:markdown_ld, :cache, :context], %{hit: 1}, %{})
+          val
       end
     else
       fun.()
@@ -40,4 +43,3 @@ defmodule MarkdownLd.ContextCache do
     end
   end
 end
-

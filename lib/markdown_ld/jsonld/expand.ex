@@ -140,16 +140,18 @@ defmodule MarkdownLd.JSONLD.Expand do
   defp coerce_value(v, _term, _ctx), do: v
 
   defp expand_iri(iri, ctx) when is_binary(iri) do
-    cond do
-      String.starts_with?(iri, ["http://", "https://"]) -> iri
-      String.contains?(iri, ":") ->
-        [prefix, local] = String.split(iri, ":", parts: 2)
-        base = ctx.prefixes[prefix]
-        if base, do: base <> local, else: iri
-      ctx.vocab and not String.starts_with?(iri, ["/", "#"]) -> ctx.vocab <> iri
-      ctx.base -> join_base(ctx.base, iri)
-      true -> iri
-    end
+    MarkdownLd.TermCache.get_or_put(ctx, {:iri, iri}, fn ->
+      cond do
+        String.starts_with?(iri, ["http://", "https://"]) -> iri
+        String.contains?(iri, ":") ->
+          [prefix, local] = String.split(iri, ":", parts: 2)
+          base = ctx.prefixes[prefix]
+          if base, do: base <> local, else: iri
+        ctx.vocab and not String.starts_with?(iri, ["/", "#"]) -> ctx.vocab <> iri
+        ctx.base -> join_base(ctx.base, iri)
+        true -> iri
+      end
+    end)
   end
   defp expand_iri(other, _ctx), do: other
 

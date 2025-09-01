@@ -24,6 +24,7 @@ defmodule MarkdownLd.JSONLD do
   def extract_triples(text) do
     # Fast path: bail early if no JSON-LD markers are present
     if not likely_jsonld?(text) do
+      MarkdownLd.Telemetry.exec([:markdown_ld, :jsonld, :skip], %{skipped: 1}, %{bytes: byte_size(text)})
       []
     else
       {fm_ctx, ld} = parse_frontmatter(text)

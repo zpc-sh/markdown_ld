@@ -17,8 +17,11 @@ defmodule MarkdownLd.TermCache do
         :undefined ->
           val = fun.()
           :persistent_term.put(key, val)
+          MarkdownLd.Telemetry.exec([:markdown_ld, :cache, :term], %{miss: 1}, %{})
           val
-        val -> val
+        val ->
+          MarkdownLd.Telemetry.exec([:markdown_ld, :cache, :term], %{hit: 1}, %{})
+          val
       end
     else
       fun.()
@@ -31,4 +34,3 @@ defmodule MarkdownLd.TermCache do
   end
   defp ctx_hash(_other), do: :erlang.phash2(0)
 end
-
