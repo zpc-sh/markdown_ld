@@ -3,14 +3,14 @@ defmodule Mix.Tasks.Spec.Msg.Pull do
   @shortdoc "Pull peer outbox messages into local inbox"
   @moduledoc """
   Usage:
-    mix spec.msg.pull --id <request_id> [--from /path/to/peer/work/spec_requests/<id>/outbox]
+    mix spec.msg.pull --id <request_id> [--from /path/to/peer/work/spec_requests/<id>/outbox] [--only 'msg_*.json'] [--dry-run]
 
   If --from is omitted, builds it from SPEC_HANDOFF_DIR: $SPEC_HANDOFF_DIR/<id>/outbox
   """
 
   @impl true
   def run(argv) do
-    {opts, _, _} = OptionParser.parse(argv, switches: [id: :string, from: :string])
+    {opts, _, _} = OptionParser.parse(argv, switches: [id: :string, from: :string, only: :string, dry_run: :boolean])
     id = req!(opts, :id)
     from_outbox =
       case Keyword.get(opts, :from) do
@@ -24,9 +24,13 @@ defmodule Mix.Tasks.Spec.Msg.Pull do
     inbox = Path.join(dest_root, "inbox")
     File.mkdir_p!(inbox)
 
-    for msg_path <- Path.wildcard(Path.join(from_outbox, "msg_*.json")) do
-      File.cp!(msg_path, Path.join(inbox, Path.basename(msg_path)))
-      Mix.shell().info("Pulled #{Path.basename(msg_path)}")
+    pattern = Keyword.get(opts, :only) || "msg_*.json"
+    dry = Keyword.get(opts, :dry_run, false)
+
+    for msg_path <- Path.wildcard(Path.join(from_outbox, pattern)) do
+      dest = Path.join(inbox, Path.basename(msg_path))
+      if dry, do: Mix.shell().info("DRY: copy #{msg_path} -> #{dest}"), else: File.cp!(msg_path, dest)
+      Mix.shell().info((dry && "DRY pulled " || "Pulled ") <> Path.basename(msg_path))
     end
   end
 

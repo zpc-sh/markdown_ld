@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Spec.Thread.Render do
       [Path.join(root, "inbox"), Path.join(root, "outbox")]
       |> Enum.flat_map(fn dir -> Path.wildcard(Path.join(dir, "msg_*.json")) end)
       |> Enum.map(&{&1, Jason.decode!(File.read!(&1))})
-      |> Enum.sort_by(fn {_p, m} -> m["created_at"] || m["id"] end)
+      |> Enum.sort_by(fn {_p, m} -> {m["created_at"] || "", m["id"] || ""} end)
 
     out = ["# Spec Thread: #{id}\n\n"]
     out = out ++ ["## Request\n\n", "```json\n", Jason.encode!(request, pretty: true), "\n```\n\n"]

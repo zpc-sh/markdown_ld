@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Spec.Msg.New do
     )
 
     id = req!(opts, :id)
-    type = req!(opts, :type)
+    type = req!(opts, :type) |> validate_type!
     body_path = req!(opts, :body)
     from_project = Keyword.get(opts, :from_project, "lang")
     from_agent = Keyword.get(opts, :from_agent, "codex")
@@ -56,9 +56,11 @@ defmodule Mix.Tasks.Spec.Msg.New do
       updated_at: now()
     }
 
-    # copy attachments if provided
+    # copy attachments if provided (store under attachments/<basename>)
     msg =
       Enum.reduce(attachments, msg, fn file, acc ->
+        # Disallow absolute paths; use only the basename
+        if Path.type(file) == :absolute, do: Mix.raise("Attachment must be a relative path: #{file}")
         dest = Path.join(atts_dir, Path.basename(file))
         File.cp!(file, dest)
         Map.update!(acc, :attachments, fn list -> list ++ [Path.relative_to(dest, root)] end)
@@ -71,6 +73,10 @@ defmodule Mix.Tasks.Spec.Msg.New do
 
   defp now, do: DateTime.utc_now() |> DateTime.to_iso8601()
   defp req!(opts, key), do: Keyword.get(opts, key) || Mix.raise("Missing --#{key}")
+  defp validate_type!(type) do
+    allowed = ["comment", "question", "proposal", "decision"]
+    if type in allowed, do: type, else: Mix.raise("Invalid --type. Allowed: #{Enum.join(allowed, ", ")}")
+  end
   defp gen_msg_id do
     ts = DateTime.utc_now() |> DateTime.to_iso8601() |> String.replace(~r/[:]/, "")
     sh = :crypto.strong_rand_bytes(3) |> Base.encode16(case: :lower)
