@@ -1,0 +1,28 @@
+name: jsonld_ex Compile Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  jsonld_ex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.15'
+          otp-version: '26'
+
+      - name: Install deps
+        run: |
+          mix deps.get
+          mix compile
+
+      - name: Verify jsonld_ex available and backend switch works
+        run: |
+          mix run -e "Application.put_env(:markdown_ld, :jsonld_backend, :jsonld_ex); unless Code.ensure_loaded?(JSON.LD), do: IO.puts(\"jsonld_ex not loaded\"); text=\"```json\\n{\\\"@context\\\":{}}\\n```\"; _=MarkdownLd.JSONLD.extract_triples(text); IO.puts(\"ok\")"

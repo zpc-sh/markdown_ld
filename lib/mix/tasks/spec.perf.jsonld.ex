@@ -13,11 +13,19 @@ defmodule Mix.Tasks.Spec.Perf.Jsonld do
 
   @impl true
   def run(argv) do
-    {opts, _, _} = OptionParser.parse(argv, switches: [dir: :string, glob: :string, repeat: :integer, backend: :string, telemetry: :boolean])
+    {opts, _, _} = OptionParser.parse(argv, switches: [
+      dir: :string,
+      glob: :string,
+      repeat: :integer,
+      backend: :string,
+      telemetry: :boolean,
+      sources: :string
+    ])
     dir = Keyword.get(opts, :dir, File.cwd!())
     glob = Keyword.get(opts, :glob, "**/*.md")
     repeat = Keyword.get(opts, :repeat, 3)
     backend = Keyword.get(opts, :backend)
+    sources = Keyword.get(opts, :sources)
     use_tel = Keyword.get(opts, :telemetry, false)
 
     if backend do
@@ -26,6 +34,15 @@ defmodule Mix.Tasks.Spec.Perf.Jsonld do
         "jsonld_ex" -> Application.put_env(:markdown_ld, :jsonld_backend, :jsonld_ex)
         other -> Mix.raise("Unknown --backend #{other} (expected internal|jsonld_ex)")
       end
+    end
+
+    if sources do
+      set =
+        sources
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
+        |> Enum.map(&String.to_atom/1)
+      Application.put_env(:markdown_ld, :jsonld_sources, set)
     end
 
     if use_tel do
@@ -53,7 +70,9 @@ defmodule Mix.Tasks.Spec.Perf.Jsonld do
       total_ms: stats.total_ms,
       mean_us: stats.mean_us,
       p95_us: stats.p95_us,
-      backend: (backend || Application.get_env(:markdown_ld, :jsonld_backend, :internal))
+      backend: (backend || Application.get_env(:markdown_ld, :jsonld_backend, :internal)),
+      sources: (sources || (Application.get_env(:markdown_ld, :jsonld_sources, [:fences,:frontmatter,:stubs,:inline,:tables,:attr_objects])
+                 |> Enum.map(&to_string/1) |> Enum.join(",")))
     }
     IO.puts(Jason.encode!(summary))
     if use_tel and Code.ensure_loaded?(MarkdownLd.TelemetryAgg) do

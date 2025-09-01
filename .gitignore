@@ -43,3 +43,5 @@ native/true/
 priv/native/*.so
 priv/native/*.dylib
 priv/native/*.dll
+
+work

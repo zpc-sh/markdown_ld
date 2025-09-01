@@ -31,36 +31,37 @@ defmodule MarkdownLd.JSONLD do
       base = ld["base"] || ld[:base]
       doc_subject = ld["subject"] || ld[:subject]
       lines = String.split(text, "\n", trim: false)
+      sources = enabled_sources()
       {_us, triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :single_pass], %{bytes: byte_size(text)}, fn ->
-        extract_single_pass(lines, fm_ctx, base, doc_subject)
+        extract_single_pass(lines, fm_ctx, base, doc_subject, sources)
       end)
       triples
     end
   end
 
   # Single-pass extractor: scans the document once and collects all sources
-  defp extract_single_pass(lines, fm_ctx, base, doc_subject) do
+  defp extract_single_pass(lines, fm_ctx, base, doc_subject, sources) do
     st = %{mode: :normal, buf: [], lang: nil, start_ln: 0, i: 0, triples: [],
            table: nil, after_table_blank: 0, attr_depth: 0, attr_buf: []}
-    do_single(lines, st, fm_ctx || %{}, base, doc_subject)[:triples] |> Enum.reverse()
+    do_single(lines, st, fm_ctx || %{}, base, doc_subject, sources)[:triples] |> Enum.reverse()
   end
 
-  defp do_single([], st, _ctx, _base, _doc), do: st
-  defp do_single([line | rest], st, ctx, base, doc) do
+  defp do_single([], st, _ctx, _base, _doc, _sources), do: st
+  defp do_single([line | rest], st, ctx, base, doc, sources) do
     i = st.i + 1
     case st.mode do
       {:fence, lang} ->
         if fence?(line) do
           json = Enum.reverse(st.buf) |> Enum.join(if lang == "application/wasm+json", do: "\n", else: "")
           triples =
-            if lang in ["json", "json-ld", "jsonld", "application/ld+json"] do
+            if MapSet.member?(sources, :fences) and lang in ["json", "json-ld", "jsonld", "application/ld+json"] do
               parse_jsonld_to_triples(json, ctx, base)
             else
               []
             end
-          do_single(rest, %{st | mode: :normal, buf: [], lang: nil, start_ln: 0, i: i, triples: triples ++ st.triples}, ctx, base, doc)
+          do_single(rest, %{st | mode: :normal, buf: [], lang: nil, start_ln: 0, i: i, triples: triples ++ st.triples}, ctx, base, doc, sources)
         else
-          do_single(rest, %{st | buf: [line | st.buf], i: i}, ctx, base, doc)
+          do_single(rest, %{st | buf: [line | st.buf], i: i}, ctx, base, doc, sources)
         end
 
       {:attr_obj, depth} ->
@@ -68,20 +69,20 @@ defmodule MarkdownLd.JSONLD do
         buf2 = [line | st.attr_buf]
         if depth2 <= 0 do
           body = buf2 |> Enum.reverse() |> Enum.join("\n")
-          triples = attr_object_to_triples(body, ctx, base)
-          do_single(rest, %{st | mode: :normal, attr_depth: 0, attr_buf: [], i: i, triples: triples ++ st.triples}, ctx, base, doc)
+          triples = if MapSet.member?(sources, :attr_objects), do: attr_object_to_triples(body, ctx, base), else: []
+          do_single(rest, %{st | mode: :normal, attr_depth: 0, attr_buf: [], i: i, triples: triples ++ st.triples}, ctx, base, doc, sources)
         else
-          do_single(rest, %{st | attr_depth: depth2, attr_buf: buf2, i: i}, ctx, base, doc)
+          do_single(rest, %{st | attr_depth: depth2, attr_buf: buf2, i: i}, ctx, base, doc, sources)
         end
 
       {:table, headers, rows} ->
         if table_header?(line) do
-          do_single(rest, %{st | mode: {:table, headers, [line | rows]}, i: i}, ctx, base, doc)
+          do_single(rest, %{st | mode: {:table, headers, [line | rows]}, i: i}, ctx, base, doc, sources)
         else
           # next non-empty line must be marker
           {rest2, marker?} = consume_until_marker([line | rest])
-          triples = if marker?, do: emit_table_triples(Enum.reverse([headers | rows]) ++ [headers], ctx, base, doc), else: []
-          do_single(rest2, %{st | mode: :normal, i: i, triples: triples ++ st.triples}, ctx, base, doc)
+          triples = if marker? and MapSet.member?(sources, :tables), do: emit_table_triples(Enum.reverse([headers | rows]) ++ [headers], ctx, base, doc), else: []
+          do_single(rest2, %{st | mode: :normal, i: i, triples: triples ++ st.triples}, ctx, base, doc, sources)
         end
 
       :normal ->
@@ -91,20 +92,20 @@ defmodule MarkdownLd.JSONLD do
               [l] -> l
               _ -> nil
             end
-            do_single(rest, %{st | mode: {:fence, to_string(lang || "")}, buf: [], lang: to_string(lang || ""), start_ln: i, i: i}, ctx, base, doc)
+            do_single(rest, %{st | mode: {:fence, to_string(lang || "")}, buf: [], lang: to_string(lang || ""), start_ln: i, i: i}, ctx, base, doc, sources)
 
           String.trim(line) |> String.starts_with?("JSONLD:") ->
-            triples = extract_from_stub_lines_lines([line])
-            do_single(rest, %{st | i: i, triples: triples ++ st.triples}, ctx, base, doc)
+            triples = if MapSet.member?(sources, :stubs), do: extract_from_stub_lines_lines([line]), else: []
+            do_single(rest, %{st | i: i, triples: triples ++ st.triples}, ctx, base, doc, sources)
 
           # attribute object start in list item
           Regex.match?(~r/^\s*-\s*\{/, line) ->
             depth = count_char(line, ?{) - count_char(line, ?})
-            do_single(rest, %{st | mode: {:attr_obj, depth}, attr_depth: depth, attr_buf: [String.trim_leading(line)] , i: i}, ctx, base, doc)
+            do_single(rest, %{st | mode: {:attr_obj, depth}, attr_depth: depth, attr_buf: [String.trim_leading(line)] , i: i}, ctx, base, doc, sources)
 
           # table header + separator lookahead
           table_header?(line) and match?([sep | _] when is_binary(sep), rest) and table_sep?(hd(rest)) ->
-            do_single(tl(rest), %{st | mode: {:table, line, []}, i: i + 1}, ctx, base, doc)
+            do_single(tl(rest), %{st | mode: {:table, line, []}, i: i + 1}, ctx, base, doc, sources)
 
           true ->
             # inline attributes: headings, links, images
@@ -117,7 +118,7 @@ defmodule MarkdownLd.JSONLD do
                     attrs_map = parse_attrs(attrs)
                     slug = MarkdownLd.Determinism.slug(text || "")
                     subj = attrs_map["ld:@id"] || doc || base_subject(base, slug)
-                    if subj, do: emit_heading_triples(subj, attrs_map, ctx, base), else: []
+                    if subj and MapSet.member?(sources, :inline), do: emit_heading_triples(subj, attrs_map, ctx, base), else: []
                   _ -> []
                 end
               else
@@ -128,7 +129,7 @@ defmodule MarkdownLd.JSONLD do
                 case Regex.run(~r/\[([^\]]+)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
                   [text1, url, attrs] ->
                     _ = text1
-                    emit_link_image_triples(doc, url, parse_attrs(attrs), ctx, base)
+                    if MapSet.member?(sources, :inline), do: emit_link_image_triples(doc, url, parse_attrs(attrs), ctx, base), else: []
                   _ -> []
                 end
               else
@@ -139,14 +140,22 @@ defmodule MarkdownLd.JSONLD do
                 case Regex.run(~r/!\[([^\]]*)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
                   [alt, src, attrs] ->
                     _ = alt
-                    emit_link_image_triples(doc, src, parse_attrs(attrs), ctx, base)
+                    if MapSet.member?(sources, :inline), do: emit_link_image_triples(doc, src, parse_attrs(attrs), ctx, base), else: []
                   _ -> []
                 end
               else
                 []
               end
-            do_single(rest, %{st | i: i, triples: triples3 ++ triples2 ++ triples1 ++ st.triples}, ctx, base, doc)
+            do_single(rest, %{st | i: i, triples: triples3 ++ triples2 ++ triples1 ++ st.triples}, ctx, base, doc, sources)
         end
+    end
+  end
+
+  defp enabled_sources do
+    case Application.get_env(:markdown_ld, :jsonld_sources) do
+      nil -> MapSet.new([:fences, :frontmatter, :stubs, :inline, :tables, :attr_objects])
+      list when is_list(list) -> MapSet.new(list)
+      _ -> MapSet.new([:fences, :frontmatter, :stubs, :inline, :tables, :attr_objects])
     end
   end
 
