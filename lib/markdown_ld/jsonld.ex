@@ -206,7 +206,7 @@ defmodule MarkdownLd.JSONLD do
 
   defp parse_data_to_triples(data, fm_ctx, _base) do
     {_us, expanded} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :expand], %{source: :data}, fn ->
-      MarkdownLd.JSONLD.Expand.expand(data, fm_ctx || %{})
+      MarkdownLd.JSONLD.Backend.expand(data, fm_ctx || %{})
     end)
     triples_from_jsonld(expanded)
   end
@@ -312,10 +312,7 @@ defmodule MarkdownLd.JSONLD do
       []
     else
       obj = %{"@id" => subject, "@type" => types}
-      expanded = case base do
-        nil -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{})
-        _ -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{}, base)
-      end
+      expanded = MarkdownLd.JSONLD.Backend.expand(obj, ctx || %{}, base)
       triples_from_jsonld(expanded)
     end
   end
@@ -328,17 +325,11 @@ defmodule MarkdownLd.JSONLD do
       v = attrs_map["ld:value"] ->
         value = build_literal(v, attrs_map)
         obj = %{"@id" => subject, prop => value}
-        expanded = case base do
-          nil -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{})
-          _ -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{}, base)
-        end
+        expanded = MarkdownLd.JSONLD.Backend.expand(obj, ctx || %{}, base)
         triples_from_jsonld(expanded)
       true ->
         obj = %{"@id" => subject, prop => [%{"@id" => url}]}
-        expanded = case base do
-          nil -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{})
-          _ -> MarkdownLd.JSONLD.Expand.expand(obj, ctx || %{}, base)
-        end
+        expanded = MarkdownLd.JSONLD.Backend.expand(obj, ctx || %{}, base)
         triples_from_jsonld(expanded)
     end
   end
@@ -458,10 +449,7 @@ defmodule MarkdownLd.JSONLD do
         else
           jsonld = %{"@id" => subj}
           jsonld = Enum.reduce(props_map, jsonld, fn {k, v}, acc -> Map.put(acc, k, parse_cell_value(v)) end)
-          expanded = case base do
-            nil -> MarkdownLd.JSONLD.Expand.expand(jsonld, ctx || %{})
-            _ -> MarkdownLd.JSONLD.Expand.expand(jsonld, ctx || %{}, base)
-          end
+          expanded = MarkdownLd.JSONLD.Backend.expand(jsonld, ctx || %{}, base)
           triples_from_jsonld(expanded)
         end
       end
@@ -565,10 +553,7 @@ defmodule MarkdownLd.JSONLD do
     case MarkdownLd.AttrObject.parse(body) do
       {:ok, map} ->
         jsonld = attr_map_to_jsonld(map)
-        expanded = case base do
-          nil -> MarkdownLd.JSONLD.Expand.expand(jsonld, fm_ctx || %{})
-          _ -> MarkdownLd.JSONLD.Expand.expand(jsonld, fm_ctx || %{}, base)
-        end
+        expanded = MarkdownLd.JSONLD.Backend.expand(jsonld, fm_ctx || %{}, base)
         triples_from_jsonld(expanded)
       {:error, _} -> []
     end

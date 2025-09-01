@@ -111,6 +111,17 @@ and can be wired to an HTTP service when available.
 
 These complement `mix spec.msg.{push,pull}` and allow an intermediary to carry artifacts without direct filesystem access.
 
+## 🔁 JSON‑LD Backend Options
+
+The JSON‑LD extractor defaults to an internal, offline expander optimized for speed and determinism.
+You can opt into the full JSON‑LD implementation via the `jsonld_ex` package when available:
+
+- Add optional dep (already declared): `{:jsonld_ex, ">= 0.0.0", optional: true}`
+- Configure backend:
+  - `config :markdown_ld, jsonld_backend: :jsonld_ex`  # or `:internal` (default)
+- Fallback: if `:jsonld_ex` is selected but not present, the extractor transparently uses the internal backend.
+
+
 ### Performance Optimizations
 - **Zero-copy processing** - Direct binary manipulation
 - **SIMD acceleration** - Vectorized pattern matching
