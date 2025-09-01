@@ -177,3 +177,27 @@ Notes:
 - The repository ignores and CI guard prevent committing built native artifacts; this does not affect
   versioning metadata like `priv/spec_workflow.json` or checksums files.
 - rustler_precompiled distribution remains unchanged by this process.
+
+
+---
+
+## 🔄 v0.4.0 Release Checklist (Internal)
+
+- Versioning
+  - [ ] Ensure `mix.exs` version is `0.4.0` and README examples reference it
+  - [ ] Tag the release `v0.4.0` in Git
+- Precompiled NIFs
+  - [ ] Run the “Precompile NIFs” workflow (Actions → Precompile NIFs → Release)
+  - [ ] Confirm assets are attached for targets:
+    - Linux (gnu, musl): x86_64, aarch64
+    - macOS: x86_64, aarch64
+    - Windows: x86_64 msvc
+  - [ ] Verify a clean machine can `mix compile` and load NIFs without build
+- JSON‑LD Perf Smoke
+  - [ ] Run the “JSON‑LD Perf Smoke” workflow (internal, jsonld_ex backends)
+  - [ ] Review p95 timings and cache hit/miss summaries in Job Summary
+- Telemetry & Caching (optional)
+  - [ ] Enable `track_performance` and sanity‑check TelemetryAgg summary locally
+- Release
+  - [ ] `mix hex.publish` for 0.4.0 (confirm package contents)
+  - [ ] Create GitHub Release notes summarizing major features and performance

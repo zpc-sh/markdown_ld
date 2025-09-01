@@ -17,6 +17,16 @@ MarkdownLd is built for production systems that require **extreme performance** 
 - **🔄 Parallel processing** with configurable concurrency
 - **📊 Built-in performance** tracking and metrics
 
+Quick microbench (JSON‑LD extractor)
+
+- Run a quick smoke over docs/examples and print JSON summary:
+  - `mix spec.perf.jsonld --dir doc --glob '**/*.md' --repeat 2`
+- Compare internal vs jsonld_ex backend:
+  - `mix spec.perf.jsonld --dir doc --glob '**/*.md' --backend internal`
+  - `mix spec.perf.jsonld --dir doc --glob '**/*.md' --backend jsonld_ex`
+- Add telemetry snapshots (per‑stage timings, cache hits/misses):
+  - `mix spec.perf.jsonld --dir doc --glob '**/*.md' --telemetry true`
+
 ## 🚀 Quick Start
 
 Add to your `mix.exs`:
@@ -120,6 +130,19 @@ You can opt into the full JSON‑LD implementation via the `jsonld_ex` package w
 - Configure backend:
   - `config :markdown_ld, jsonld_backend: :jsonld_ex`  # or `:internal` (default)
 - Fallback: if `:jsonld_ex` is selected but not present, the extractor transparently uses the internal backend.
+
+## 📈 Telemetry (Optional)
+
+Enable lightweight telemetry to measure extractor performance and cache efficacy:
+
+- In `config/config.exs`:
+  - `config :markdown_ld, track_performance: true`
+- Attach a console logger (dev only):
+  - `if Code.ensure_loaded?(MarkdownLd.TelemetryLogger), do: MarkdownLd.TelemetryLogger.attach()`
+- Aggregate during a run:
+  - `{:ok, _} = MarkdownLd.TelemetryAgg.start_link()`
+  - `MarkdownLd.TelemetryAgg.attach()`
+  - Run workload, then `MarkdownLd.TelemetryAgg.summary()` to see p95, cache hits/misses.
 
 
 ### Performance Optimizations
