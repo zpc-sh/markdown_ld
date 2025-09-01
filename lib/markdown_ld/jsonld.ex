@@ -656,11 +656,24 @@ defmodule MarkdownLd.JSONLD do
     Enum.flat_map(v, fn e -> triples_for_value(s, p, e) end)
   end
   defp triples_for_value(s, p, v) when is_map(v) do
-    case Map.get(v, "@id") || Map.get(v, :"@id") do
-      nil ->
+    cond do
+      # Literal node
+      Map.has_key?(v, "@value") or Map.has_key?(v, :"@value") ->
+        value = Map.get(v, "@value") || Map.get(v, :"@value")
+        lang = Map.get(v, "@language") || Map.get(v, :"@language")
+        dtype = Map.get(v, "@type") || Map.get(v, :"@type")
+        base = %{s: s, p: p, o: to_string(value)}
+        base = if lang, do: Map.put(base, :o_lang, String.downcase(to_string(lang))), else: base
+        base = if dtype, do: Map.put(base, :o_datatype, to_string(dtype)), else: base
+        [base]
+      # IRI node
+      Map.has_key?(v, "@id") or Map.has_key?(v, :"@id") ->
+        id = Map.get(v, "@id") || Map.get(v, :"@id")
+        [%{s: s, p: p, o: id}] ++ triples_from_jsonld(v)
+      true ->
+        # Blank node: assign deterministic id and emit sub-triples
         id = gen_subject(v)
         [%{s: s, p: p, o: id}] ++ triples_from_jsonld(Map.put(v, "@id", id))
-      id -> [%{s: s, p: p, o: id}] ++ triples_from_jsonld(v)
     end
   end
 
