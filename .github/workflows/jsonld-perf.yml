@@ -26,10 +26,17 @@ jobs:
           mix deps.get
           mix compile
 
-      - name: Run JSON-LD microbench (backend=${{ matrix.backend }})
-        id: bench
+      - name: Run JSON-LD microbench on docs (backend=${{ matrix.backend }})
+        id: bench_docs
         run: |
-          OUT=$(mix spec.perf.jsonld --dir . --glob '**/*.md' --repeat 1 --backend ${{ matrix.backend }} --telemetry true)
+          OUT=$(mix spec.perf.jsonld --dir doc --glob '**/*.md' --repeat 1 --backend ${{ matrix.backend }} --telemetry true || echo '{}')
+          echo "$OUT"
+          echo "out=$OUT" >> $GITHUB_OUTPUT
+
+      - name: Run JSON-LD microbench on examples (backend=${{ matrix.backend }})
+        id: bench_examples
+        run: |
+          OUT=$(mix spec.perf.jsonld --dir examples --glob '**/*.md' --repeat 1 --backend ${{ matrix.backend }} --telemetry true || echo '{}')
           echo "$OUT"
           echo "out=$OUT" >> $GITHUB_OUTPUT
 
@@ -37,6 +44,6 @@ jobs:
         run: |
           echo "### Backend ${{ matrix.backend }}" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.bench.outputs.out }}' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.bench_docs.outputs.out }}' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.bench_examples.outputs.out }}' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-

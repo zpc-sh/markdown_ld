@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0
+
+- JSON‑LD extractor
+  - Added optional `jsonld_ex` backend with safe fallback to internal expander.
+  - Single‑pass extraction state machine; fast‑path skip for non‑JSON‑LD docs.
+  - Literal metadata preserved (language/datatype) on triples; tables support lists and typed values.
+  - Expanded tests for inline attrs, tables, datatypes; perf microbench task.
+  - Telemetry hooks + aggregator for per‑stage timings and cache hits/misses.
+- Performance
+  - Context/term/IRI caching via `:persistent_term`.
+  - Cheap prechecks to reduce regex costs; line split only once.
+- CDFM/API
+  - File‑based CDFM export/import tasks and helper; docs in README.
+  - Handoff manifest generation and integrity checks.
+- Spec Flow
+  - Hardened push/pull (dry‑run filters, path safety), schema linting, deterministic render.
+- Native (NIF)
+  - rustler_precompiled integration and CI workflow to build per‑target artifacts.
+
+
 All notable changes to MarkdownLd will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
