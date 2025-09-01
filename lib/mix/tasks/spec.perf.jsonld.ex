@@ -13,10 +13,28 @@ defmodule Mix.Tasks.Spec.Perf.Jsonld do
 
   @impl true
   def run(argv) do
-    {opts, _, _} = OptionParser.parse(argv, switches: [dir: :string, glob: :string, repeat: :integer])
+    {opts, _, _} = OptionParser.parse(argv, switches: [dir: :string, glob: :string, repeat: :integer, backend: :string, telemetry: :boolean])
     dir = Keyword.get(opts, :dir, File.cwd!())
     glob = Keyword.get(opts, :glob, "**/*.md")
     repeat = Keyword.get(opts, :repeat, 3)
+    backend = Keyword.get(opts, :backend)
+    use_tel = Keyword.get(opts, :telemetry, false)
+
+    if backend do
+      case backend do
+        "internal" -> Application.put_env(:markdown_ld, :jsonld_backend, :internal)
+        "jsonld_ex" -> Application.put_env(:markdown_ld, :jsonld_backend, :jsonld_ex)
+        other -> Mix.raise("Unknown --backend #{other} (expected internal|jsonld_ex)")
+      end
+    end
+
+    if use_tel do
+      Application.put_env(:markdown_ld, :track_performance, true)
+      if Code.ensure_loaded?(MarkdownLd.TelemetryAgg) do
+        {:ok, _} = MarkdownLd.TelemetryAgg.start_link()
+        MarkdownLd.TelemetryAgg.attach()
+      end
+    end
 
     files = Path.wildcard(Path.join([dir, glob]), match_dot: false)
     if files == [], do: Mix.raise("No files matched #{glob} under #{dir}")
@@ -29,7 +47,18 @@ defmodule Mix.Tasks.Spec.Perf.Jsonld do
       end
 
     stats = stats(times)
-    IO.puts("docs=#{length(files)} runs=#{length(times)} total_ms=#{stats.total_ms} mean_us=#{stats.mean_us} p95_us=#{stats.p95_us}")
+    summary = %{
+      docs: length(files),
+      runs: length(times),
+      total_ms: stats.total_ms,
+      mean_us: stats.mean_us,
+      p95_us: stats.p95_us,
+      backend: (backend || Application.get_env(:markdown_ld, :jsonld_backend, :internal))
+    }
+    IO.puts(Jason.encode!(summary))
+    if use_tel and Code.ensure_loaded?(MarkdownLd.TelemetryAgg) do
+      IO.puts(Jason.encode!(%{telemetry: MarkdownLd.TelemetryAgg.summary()}))
+    end
   end
 
   defp stats(times) do
@@ -46,4 +75,3 @@ defmodule Mix.Tasks.Spec.Perf.Jsonld do
     Enum.at(sorted, idx - 1)
   end
 end
-

@@ -568,6 +568,11 @@ defmodule MarkdownLd.JSONLD do
   defp parse_cell_value(v) do
     cond do
       v == nil or v == "" -> ""
+      String.match?(v, ~r/^\[(.*)\]$/) ->
+        inner = v |> String.trim() |> String.trim_leading("[") |> String.trim_trailing("]")
+        inner
+        |> String.split(~r/\s*,\s*/, trim: true)
+        |> Enum.map(&parse_cell_scalar/1)
       String.match?(v, ~r/^\".*\"@([A-Za-z0-9-]+)$/) ->
         [_, val, lang] = Regex.run(~r/^\"(.*)\"@([A-Za-z0-9-]+)$/, v)
         %{"@value" => val, "@language" => String.downcase(lang)}
@@ -582,6 +587,20 @@ defmodule MarkdownLd.JSONLD do
       String.downcase(v) in ["true", "false"] -> String.downcase(v) == "true"
       String.match?(v, ~r/^\".*\"$/) -> v |> String.trim_leading("\"") |> String.trim_trailing("\"")
       true -> v
+    end
+  end
+
+  defp parse_cell_scalar(s) do
+    s = String.trim(s)
+    cond do
+      String.match?(s, ~r/^\".*\"@([A-Za-z0-9-]+)$/) ->
+        [_, val, lang] = Regex.run(~r/^\"(.*)\"@([A-Za-z0-9-]+)$/, s)
+        %{"@value" => val, "@language" => String.downcase(lang)}
+      String.match?(s, ~r/^\".*\"\^\^(.+)$/) ->
+        [_, val, dt] = Regex.run(~r/^\"(.*)\"\^\^(.+)$/, s)
+        %{"@value" => val, "@type" => dt}
+      String.match?(s, ~r/^\".*\"$/) -> s |> String.trim_leading("\"") |> String.trim_trailing("\"")
+      true -> s
     end
   end
 
