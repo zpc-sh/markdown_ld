@@ -116,10 +116,12 @@ defmodule MarkdownLd.JSONLD.Expand do
   defp put_term_def(acc, key, _), do: acc
 
   defp resolve_term(key, ctx) do
-    case ctx.terms[key] do
-      %{id: id} = term -> {expand_iri(id, ctx), term}
-      nil -> {expand_iri(key, ctx), %{}}
-    end
+    MarkdownLd.TermCache.get_or_put(ctx, key, fn ->
+      case ctx.terms[key] do
+        %{id: id} = term -> {expand_iri(id, ctx), term}
+        nil -> {expand_iri(key, ctx), %{}}
+      end
+    end)
   end
 
   defp expand_types(v, ctx) when is_list(v), do: Enum.map(v, &expand_types(&1, ctx))

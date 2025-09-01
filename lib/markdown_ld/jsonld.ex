@@ -30,23 +30,24 @@ defmodule MarkdownLd.JSONLD do
     base = ld["base"] || ld[:base]
     doc_subject = ld["subject"] || ld[:subject]
       # Measure stages (optional telemetry)
+      lines = String.split(text, "\n", trim: false)
       {fences_us, fence_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :fences], %{bytes: byte_size(text)}, fn ->
-        extract_from_fences(text, fm_ctx, base)
+        extract_from_fences_lines(lines, fm_ctx, base)
       end)
       {fm_us, fm_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :frontmatter], %{}, fn ->
         extract_from_frontmatter(text, fm_ctx, base)
       end)
       {stub_us, stub_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :stubs], %{}, fn ->
-        extract_from_stub_lines(text)
+        extract_from_stub_lines_lines(lines)
       end)
       {attr_us, attr_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :attr_objects], %{}, fn ->
-        extract_from_attribute_objects(text, fm_ctx, base)
+        extract_from_attribute_objects_lines(lines, fm_ctx, base)
       end)
       {inline_us, inline_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :inline_attrs], %{}, fn ->
-        extract_from_inline_attrs(text, fm_ctx, base, doc_subject)
+        extract_from_inline_attrs_lines(lines, fm_ctx, base, doc_subject)
       end)
       {table_us, table_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :tables], %{}, fn ->
-        extract_from_tables(text, fm_ctx, base, doc_subject)
+        extract_from_tables_lines(lines, fm_ctx, base, doc_subject)
       end)
 
       all = fence_triples ++ fm_triples ++ stub_triples ++ attr_triples ++ inline_triples ++ table_triples
@@ -142,6 +143,9 @@ defmodule MarkdownLd.JSONLD do
 
   defp extract_from_fences(text, fm_ctx, base) do
     lines = String.split(text, "\n", trim: false)
+    extract_from_fences_lines(lines, fm_ctx, base)
+  end
+  defp extract_from_fences_lines(lines, fm_ctx, base) do
     do_fences(lines, nil, [], fm_ctx, base) |> List.flatten()
   end
 
@@ -225,8 +229,10 @@ defmodule MarkdownLd.JSONLD do
   end
 
   defp extract_from_stub_lines(text) do
-    text
-    |> String.split("\n")
+    text |> String.split("\n") |> extract_from_stub_lines_lines()
+  end
+  defp extract_from_stub_lines_lines(lines) do
+    lines
     |> Enum.map(&String.trim/1)
     |> Enum.filter(&String.starts_with?(&1, "JSONLD:"))
     |> Enum.map(fn "JSONLD:" <> rest ->
@@ -242,6 +248,9 @@ defmodule MarkdownLd.JSONLD do
   # ——— Inline Attribute Lists on Headings/Links/Images ———
   defp extract_from_inline_attrs(text, fm_ctx, base, doc_subject) do
     lines = String.split(text, "\n", trim: false)
+    extract_from_inline_attrs_lines(lines, fm_ctx, base, doc_subject)
+  end
+  defp extract_from_inline_attrs_lines(lines, fm_ctx, base, doc_subject) do
     do_inline(lines, %{subjects: %{}, cur: doc_subject}, fm_ctx, base, []) |> List.flatten()
   end
 
@@ -382,6 +391,9 @@ defmodule MarkdownLd.JSONLD do
   # ——— Tables ({ld:table=properties}) ———
   defp extract_from_tables(text, fm_ctx, base, doc_subject) do
     lines = String.split(text, "\n", trim: false)
+    extract_from_tables_lines(lines, fm_ctx, base, doc_subject)
+  end
+  defp extract_from_tables_lines(lines, fm_ctx, base, doc_subject) do
     do_tables(lines, 0, fm_ctx, base, doc_subject, []) |> List.flatten()
   end
 
@@ -518,6 +530,9 @@ defmodule MarkdownLd.JSONLD do
   # ——— Attribute Objects in List Items ———
   defp extract_from_attribute_objects(text, fm_ctx, base) do
     lines = String.split(text, "\n", trim: false)
+    extract_from_attribute_objects_lines(lines, fm_ctx, base)
+  end
+  defp extract_from_attribute_objects_lines(lines, fm_ctx, base) do
     scan_attr_objects(lines, 0, fm_ctx, base, []) |> List.flatten()
   end
 
