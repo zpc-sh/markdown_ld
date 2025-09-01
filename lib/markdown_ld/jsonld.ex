@@ -108,29 +108,42 @@ defmodule MarkdownLd.JSONLD do
 
           true ->
             # inline attributes: headings, links, images
+            trimmed = String.trim(line)
             triples1 =
-              case Regex.run(~r/^\s*(#\{1,6\})\s+(.+?)\s*\{([^}]*)\}\s*$/, line, capture: :all_but_first) do
-                [hashes, text, attrs] ->
-                  level = String.length(hashes)
-                  attrs_map = parse_attrs(attrs)
-                  slug = MarkdownLd.Determinism.slug(text || "")
-                  subj = attrs_map["ld:@id"] || doc || base_subject(base, slug)
-                  if subj, do: emit_heading_triples(subj, attrs_map, ctx, base), else: []
-                _ -> []
+              if String.contains?(trimmed, ["#", "{"]) do
+                case Regex.run(~r/^\s*(#\{1,6\})\s+(.+?)\s*\{([^}]*)\}\s*$/, line, capture: :all_but_first) do
+                  [hashes, text, attrs] ->
+                    _level = String.length(hashes)
+                    attrs_map = parse_attrs(attrs)
+                    slug = MarkdownLd.Determinism.slug(text || "")
+                    subj = attrs_map["ld:@id"] || doc || base_subject(base, slug)
+                    if subj, do: emit_heading_triples(subj, attrs_map, ctx, base), else: []
+                  _ -> []
+                end
+              else
+                []
               end
             triples2 =
-              case Regex.run(~r/\[([^\]]+)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
-                [text1, url, attrs] ->
-                  _ = text1
-                  emit_link_image_triples(doc, url, parse_attrs(attrs), ctx, base)
-                _ -> []
+              if String.contains?(trimmed, ["]", ")", "{"]) do
+                case Regex.run(~r/\[([^\]]+)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
+                  [text1, url, attrs] ->
+                    _ = text1
+                    emit_link_image_triples(doc, url, parse_attrs(attrs), ctx, base)
+                  _ -> []
+                end
+              else
+                []
               end
             triples3 =
-              case Regex.run(~r/!\[([^\]]*)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
-                [alt, src, attrs] ->
-                  _ = alt
-                  emit_link_image_triples(doc, src, parse_attrs(attrs), ctx, base)
-                _ -> []
+              if String.starts_with?(trimmed, "!") and String.contains?(trimmed, ["]", ")", "{"]) do
+                case Regex.run(~r/!\[([^\]]*)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
+                  [alt, src, attrs] ->
+                    _ = alt
+                    emit_link_image_triples(doc, src, parse_attrs(attrs), ctx, base)
+                  _ -> []
+                end
+              else
+                []
               end
             do_single(rest, %{st | i: i, triples: triples3 ++ triples2 ++ triples1 ++ st.triples}, ctx, base, doc)
         end
