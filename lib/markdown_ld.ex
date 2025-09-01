@@ -190,7 +190,11 @@ defmodule MarkdownLd do
 
   def parse(content, opts) when is_binary(content) do
     opts = Keyword.merge(default_options(), opts)
-    Native.parse_markdown(content, opts)
+    backend = Application.get_env(:markdown_ld, :backend, :nif)
+    case backend do
+      :elixir -> MarkdownLd.Fallback.parse(content, opts)
+      _ -> safe_nif(fn -> Native.parse_markdown(content, opts) end, content, opts)
+    end
   end
 
   @doc """
@@ -202,7 +206,11 @@ defmodule MarkdownLd do
   @spec parse_binary(binary(), parse_options()) :: {:ok, parse_result()} | {:error, String.t()}
   def parse_binary(binary, opts \\ []) when is_binary(binary) do
     opts = Keyword.merge(default_options(), opts)
-    Native.parse_markdown_binary(binary, opts)
+    backend = Application.get_env(:markdown_ld, :backend, :nif)
+    case backend do
+      :elixir -> MarkdownLd.Fallback.parse(binary, opts)
+      _ -> safe_nif(fn -> Native.parse_markdown_binary(binary, opts) end, binary, opts)
+    end
   end
 
   @doc """
@@ -221,14 +229,11 @@ defmodule MarkdownLd do
   def parse_batch(documents, opts \\ []) when is_list(documents) do
     opts = Keyword.merge(default_options(), opts)
     max_workers = Keyword.get(opts, :max_workers, System.schedulers_online())
-    
     documents
-    |> Task.async_stream(
-      fn doc -> parse(doc, opts) end,
+    |> Task.async_stream(fn doc -> parse(doc, opts) end,
       max_concurrency: max_workers,
       timeout: :infinity,
-      ordered: true
-    )
+      ordered: true)
     |> Enum.reduce_while({:ok, []}, fn
       {:ok, {:ok, result}}, {:ok, acc} -> {:cont, {:ok, [result | acc]}}
       {:ok, {:error, reason}}, _acc -> {:halt, {:error, reason}}
@@ -249,7 +254,11 @@ defmodule MarkdownLd do
   @spec parse_batch_rust([String.t() | binary()], parse_options()) :: {:ok, [parse_result()]} | {:error, String.t()}
   def parse_batch_rust(documents, opts \\ []) when is_list(documents) do
     opts = Keyword.merge(default_options(), opts)
-    Native.parse_batch_parallel(documents, opts)
+    backend = Application.get_env(:markdown_ld, :backend, :nif)
+    case backend do
+      :elixir -> parse_batch(documents, opts)
+      _ -> safe_nif(fn -> Native.parse_batch_parallel(documents, opts) end, documents, opts)
+    end
   end
 
   @doc """
@@ -365,6 +374,14 @@ defmodule MarkdownLd do
       cache_patterns: true,
       track_performance: true
     ]
+  end
+
+  defp safe_nif(fun, content, _opts) do
+    try do
+      fun.()
+    rescue
+      _ -> MarkdownLd.Fallback.parse(content, [])
+    end
   end
 
   # ——— Diff API (composed) ———
