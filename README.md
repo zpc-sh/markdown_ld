@@ -99,6 +99,18 @@ Guardrails:
 - `.gitignore` blocks native blobs and Cargo targets.
 - CI (`Native Artifacts Guard`) fails if any forbidden native artifact is tracked.
 
+## 🤝 CDFM Handoff (API-ready)
+
+This repo includes file-based tasks that produce and consume a CDFM-style manifest. These are API-ready
+and can be wired to an HTTP service when available.
+
+- Export manifest from outbox messages and referenced attachments:
+  - `mix spec.cdfm.export --id <id> [--only 'msg_*.json'] [--out work/spec_requests/<id>/handoff_manifest.json]`
+- Import a manifest into local request inbox and attachments (with integrity checks):
+  - `mix spec.cdfm.import --id <id> --manifest work/spec_requests/<id>/handoff_manifest.json [--dry-run]`
+
+These complement `mix spec.msg.{push,pull}` and allow an intermediary to carry artifacts without direct filesystem access.
+
 ### Performance Optimizations
 - **Zero-copy processing** - Direct binary manipulation
 - **SIMD acceleration** - Vectorized pattern matching
