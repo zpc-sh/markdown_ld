@@ -1,0 +1,18 @@
+name: Native Artifacts Guard
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure no native build artifacts are tracked
+        run: bash scripts/ci_check_no_native_artifacts.sh
+
