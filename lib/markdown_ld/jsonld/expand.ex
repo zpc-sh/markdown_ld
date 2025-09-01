@@ -26,7 +26,7 @@ defmodule MarkdownLd.JSONLD.Expand do
   """
   @spec expand(any(), any()) :: any()
   def expand(data, init_ctx) do
-    base = build_ctx(init_ctx)
+    base = build_ctx_cached(init_ctx)
     do_expand(data, base)
   end
 
@@ -35,7 +35,7 @@ defmodule MarkdownLd.JSONLD.Expand do
   """
   @spec expand(any(), any(), String.t() | nil) :: any()
   def expand(data, init_ctx, base_iri) do
-    base = build_ctx(init_ctx)
+    base = build_ctx_cached(init_ctx)
     do_expand(data, %{base | base: base_iri || base.base})
   end
 
@@ -86,6 +86,10 @@ defmodule MarkdownLd.JSONLD.Expand do
     end)
   end
   defp build_ctx(_), do: ctx_from(%{})
+
+  defp build_ctx_cached(init_ctx) do
+    MarkdownLd.ContextCache.get_or_put(init_ctx, fn -> build_ctx(init_ctx) end)
+  end
 
   defp merge_ctx(a, b) do
     %{vocab: b.vocab || a.vocab, prefixes: Map.merge(a.prefixes, b.prefixes), terms: Map.merge(a.terms, b.terms), base: b.base || a.base}
