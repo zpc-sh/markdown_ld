@@ -56,15 +56,16 @@ defmodule Mix.Tasks.Spec.Msg.Push do
 
   defp req!(opts, key), do: Keyword.get(opts, key) || Mix.raise("Missing --#{key}")
   defp safe_join(root, rel) do
-    if Path.type(rel) == :absolute, do: {:error, "absolute path not allowed"},
-      else: begin
-        expanded_root = Path.expand(root)
-        expanded = Path.expand(Path.join(expanded_root, rel))
-        if String.starts_with?(expanded, expanded_root <> "/") or expanded == expanded_root do
-          {:ok, expanded}
-        else
-          {:error, "path escapes root"}
-        end
+    if Path.type(rel) == :absolute do
+      {:error, "absolute path not allowed"}
+    else
+      expanded_root = Path.expand(root)
+      expanded = Path.expand(Path.join(expanded_root, rel))
+      if String.starts_with?(expanded, expanded_root <> "/") or expanded == expanded_root do
+        {:ok, expanded}
+      else
+        {:error, "path escapes root"}
       end
+    end
   end
 end
