@@ -22,16 +22,45 @@ defmodule MarkdownLd.JSONLD do
   """
   @spec extract_triples(String.t()) :: [triple()]
   def extract_triples(text) do
-    {fm_ctx, ld} = parse_frontmatter(text)
+    # Fast path: bail early if no JSON-LD markers are present
+    if not likely_jsonld?(text) do
+      []
+    else
+      {fm_ctx, ld} = parse_frontmatter(text)
     base = ld["base"] || ld[:base]
     doc_subject = ld["subject"] || ld[:subject]
-    fence_triples = extract_from_fences(text, fm_ctx, base)
-    fm_triples = extract_from_frontmatter(text, fm_ctx, base)
-    stub_triples = extract_from_stub_lines(text)
-    attr_triples = extract_from_attribute_objects(text, fm_ctx, base)
-    inline_triples = extract_from_inline_attrs(text, fm_ctx, base, doc_subject)
-    table_triples = extract_from_tables(text, fm_ctx, base, doc_subject)
-    fence_triples ++ fm_triples ++ stub_triples ++ attr_triples ++ inline_triples ++ table_triples
+      # Measure stages (optional telemetry)
+      {fences_us, fence_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :fences], %{bytes: byte_size(text)}, fn ->
+        extract_from_fences(text, fm_ctx, base)
+      end)
+      {fm_us, fm_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :frontmatter], %{}, fn ->
+        extract_from_frontmatter(text, fm_ctx, base)
+      end)
+      {stub_us, stub_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :stubs], %{}, fn ->
+        extract_from_stub_lines(text)
+      end)
+      {attr_us, attr_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :attr_objects], %{}, fn ->
+        extract_from_attribute_objects(text, fm_ctx, base)
+      end)
+      {inline_us, inline_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :inline_attrs], %{}, fn ->
+        extract_from_inline_attrs(text, fm_ctx, base, doc_subject)
+      end)
+      {table_us, table_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :tables], %{}, fn ->
+        extract_from_tables(text, fm_ctx, base, doc_subject)
+      end)
+
+      all = fence_triples ++ fm_triples ++ stub_triples ++ attr_triples ++ inline_triples ++ table_triples
+      MarkdownLd.Telemetry.exec([:markdown_ld, :jsonld, :extract], %{
+        total_triples: length(all),
+        fences_us: fences_us,
+        frontmatter_us: fm_us,
+        stubs_us: stub_us,
+        attr_us: attr_us,
+        inline_us: inline_us,
+        tables_us: table_us
+      }, %{bytes: byte_size(text)})
+      all
+    end
   end
 
   @doc """
@@ -150,20 +179,30 @@ defmodule MarkdownLd.JSONLD do
 
   defp parse_jsonld_to_triples(json, fm_ctx \\ %{}) do
     case Jason.decode(json) do
-      {:ok, data} -> parse_data_to_triples(data, fm_ctx, nil)
+      {:ok, data} ->
+        {_us, triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :expand], %{source: :fence}, fn ->
+          parse_data_to_triples(data, fm_ctx, nil)
+        end)
+        triples
       _ -> []
     end
   end
 
   defp parse_jsonld_to_triples(json, fm_ctx, base) do
     case Jason.decode(json) do
-      {:ok, data} -> parse_data_to_triples(data, fm_ctx, base)
+      {:ok, data} ->
+        {_us, triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :expand], %{source: :fence}, fn ->
+          parse_data_to_triples(data, fm_ctx, base)
+        end)
+        triples
       _ -> []
     end
   end
 
   defp parse_data_to_triples(data, fm_ctx, _base) do
-    expanded = MarkdownLd.JSONLD.Expand.expand(data, fm_ctx || %{})
+    {_us, expanded} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :expand], %{source: :data}, fn ->
+      MarkdownLd.JSONLD.Expand.expand(data, fm_ctx || %{})
+    end)
     triples_from_jsonld(expanded)
   end
 
@@ -414,6 +453,21 @@ defmodule MarkdownLd.JSONLD do
         end
       end
     end)
+  end
+
+  # ——— Fast path detection ———
+  defp likely_jsonld?(text) do
+    String.contains?(text, [
+      "```json",
+      "```json-ld",
+      "```jsonld",
+      "```application/ld+json",
+      "JSONLD:",
+      "{ld:",
+      " ld:",
+      "{ld:table=properties",
+      "\n---"
+    ])
   end
 
   defp split_cells(line) do

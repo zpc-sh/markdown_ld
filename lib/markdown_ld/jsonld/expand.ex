@@ -15,7 +15,10 @@ defmodule MarkdownLd.JSONLD.Expand do
 
   @spec expand(any()) :: any()
   def expand(data) do
-    do_expand(data, %{})
+    {_us, exp} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :expand], %{source: :noctx}, fn ->
+      do_expand(data, %{})
+    end)
+    exp
   end
 
   @doc """
