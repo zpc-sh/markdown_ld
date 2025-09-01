@@ -1,0 +1,37 @@
+{
+  "request_id": "demo-001",
+  "source_root": "work/spec_requests/demo-001",
+  "messages": [
+    {
+      "path": "work/spec_requests/demo-001/outbox/msg_demo001_init.json",
+      "dest": "inbox/msg_demo001_init.json",
+      "size_bytes": 497,
+      "sha256": "30acbb58da8e6e29374dfa60bf55e831dd90c30167a9b34f2509ba4059444f09"
+    },
+    {
+      "path": "work/spec_requests/demo-001/outbox/msg_demo001_patch.json",
+      "dest": "inbox/msg_demo001_patch.json",
+      "size_bytes": 508,
+      "sha256": "6ceff0c30c95185681b684b354533e33aaaac65eac6bd36b290381ce75ce2af2"
+    }
+  ],
+  "attachments": [
+    {
+      "path": "work/spec_requests/demo-001/attachments/concerns_improvements.md",
+      "dest": "attachments/concerns_improvements.md",
+      "size_bytes": 2601,
+      "sha256": "59e13c0bf3dc15e470daa658f22c6d5b5a5d2de857568068e28bb565ba6bbff6"
+    },
+    {
+      "path": "work/spec_requests/demo-001/attachments/patch.json",
+      "dest": "attachments/patch.json",
+      "size_bytes": 147,
+      "sha256": "d8b9c168f74c13ac719245e837028d208aa9d4322cec9994bef7efa78d6b678a"
+    }
+  ],
+  "notes": [
+    "Copy each message to the peer's request inbox and each attachment to the peer's request root using the 'dest' paths.",
+    "Receiver can then run: mix spec.apply --id demo-001, followed by mix spec.lint --id demo-001 and mix spec.thread.render --id demo-001"
+  ]
+}
+
