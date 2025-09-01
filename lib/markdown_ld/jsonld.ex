@@ -28,40 +28,112 @@ defmodule MarkdownLd.JSONLD do
       []
     else
       {fm_ctx, ld} = parse_frontmatter(text)
-    base = ld["base"] || ld[:base]
-    doc_subject = ld["subject"] || ld[:subject]
-      # Measure stages (optional telemetry)
+      base = ld["base"] || ld[:base]
+      doc_subject = ld["subject"] || ld[:subject]
       lines = String.split(text, "\n", trim: false)
-      {fences_us, fence_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :fences], %{bytes: byte_size(text)}, fn ->
-        extract_from_fences_lines(lines, fm_ctx, base)
+      {_us, triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :single_pass], %{bytes: byte_size(text)}, fn ->
+        extract_single_pass(lines, fm_ctx, base, doc_subject)
       end)
-      {fm_us, fm_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :frontmatter], %{}, fn ->
-        extract_from_frontmatter(text, fm_ctx, base)
-      end)
-      {stub_us, stub_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :stubs], %{}, fn ->
-        extract_from_stub_lines_lines(lines)
-      end)
-      {attr_us, attr_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :attr_objects], %{}, fn ->
-        extract_from_attribute_objects_lines(lines, fm_ctx, base)
-      end)
-      {inline_us, inline_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :inline_attrs], %{}, fn ->
-        extract_from_inline_attrs_lines(lines, fm_ctx, base, doc_subject)
-      end)
-      {table_us, table_triples} = MarkdownLd.Telemetry.measure([:markdown_ld, :jsonld, :tables], %{}, fn ->
-        extract_from_tables_lines(lines, fm_ctx, base, doc_subject)
-      end)
+      triples
+    end
+  end
 
-      all = fence_triples ++ fm_triples ++ stub_triples ++ attr_triples ++ inline_triples ++ table_triples
-      MarkdownLd.Telemetry.exec([:markdown_ld, :jsonld, :extract], %{
-        total_triples: length(all),
-        fences_us: fences_us,
-        frontmatter_us: fm_us,
-        stubs_us: stub_us,
-        attr_us: attr_us,
-        inline_us: inline_us,
-        tables_us: table_us
-      }, %{bytes: byte_size(text)})
-      all
+  # Single-pass extractor: scans the document once and collects all sources
+  defp extract_single_pass(lines, fm_ctx, base, doc_subject) do
+    st = %{mode: :normal, buf: [], lang: nil, start_ln: 0, i: 0, triples: [],
+           table: nil, after_table_blank: 0, attr_depth: 0, attr_buf: []}
+    do_single(lines, st, fm_ctx || %{}, base, doc_subject)[:triples] |> Enum.reverse()
+  end
+
+  defp do_single([], st, _ctx, _base, _doc), do: st
+  defp do_single([line | rest], st, ctx, base, doc) do
+    i = st.i + 1
+    case st.mode do
+      {:fence, lang} ->
+        if fence?(line) do
+          json = Enum.reverse(st.buf) |> Enum.join(if lang == "application/wasm+json", do: "\n", else: "")
+          triples =
+            if lang in ["json", "json-ld", "jsonld", "application/ld+json"] do
+              parse_jsonld_to_triples(json, ctx, base)
+            else
+              []
+            end
+          do_single(rest, %{st | mode: :normal, buf: [], lang: nil, start_ln: 0, i: i, triples: triples ++ st.triples}, ctx, base, doc)
+        else
+          do_single(rest, %{st | buf: [line | st.buf], i: i}, ctx, base, doc)
+        end
+
+      {:attr_obj, depth} ->
+        depth2 = st.attr_depth + count_char(line, ?{) - count_char(line, ?})
+        buf2 = [line | st.attr_buf]
+        if depth2 <= 0 do
+          body = buf2 |> Enum.reverse() |> Enum.join("\n")
+          triples = attr_object_to_triples(body, ctx, base)
+          do_single(rest, %{st | mode: :normal, attr_depth: 0, attr_buf: [], i: i, triples: triples ++ st.triples}, ctx, base, doc)
+        else
+          do_single(rest, %{st | attr_depth: depth2, attr_buf: buf2, i: i}, ctx, base, doc)
+        end
+
+      {:table, headers, rows} ->
+        if table_header?(line) do
+          do_single(rest, %{st | mode: {:table, headers, [line | rows]}, i: i}, ctx, base, doc)
+        else
+          # next non-empty line must be marker
+          {rest2, marker?} = consume_until_marker([line | rest])
+          triples = if marker?, do: emit_table_triples(Enum.reverse([headers | rows]) ++ [headers], ctx, base, doc), else: []
+          do_single(rest2, %{st | mode: :normal, i: i, triples: triples ++ st.triples}, ctx, base, doc)
+        end
+
+      :normal ->
+        cond do
+          m = Regex.run(~r/^```\s*([A-Za-z0-9_+\-\/]+)?\s*$/, line, capture: :all_but_first) ->
+            lang = case m do
+              [l] -> l
+              _ -> nil
+            end
+            do_single(rest, %{st | mode: {:fence, to_string(lang || "")}, buf: [], lang: to_string(lang || ""), start_ln: i, i: i}, ctx, base, doc)
+
+          String.trim(line) |> String.starts_with?("JSONLD:") ->
+            triples = extract_from_stub_lines_lines([line])
+            do_single(rest, %{st | i: i, triples: triples ++ st.triples}, ctx, base, doc)
+
+          # attribute object start in list item
+          Regex.match?(~r/^\s*-\s*\{/, line) ->
+            depth = count_char(line, ?{) - count_char(line, ?})
+            do_single(rest, %{st | mode: {:attr_obj, depth}, attr_depth: depth, attr_buf: [String.trim_leading(line)] , i: i}, ctx, base, doc)
+
+          # table header + separator lookahead
+          table_header?(line) and match?([sep | _] when is_binary(sep), rest) and table_sep?(hd(rest)) ->
+            do_single(tl(rest), %{st | mode: {:table, line, []}, i: i + 1}, ctx, base, doc)
+
+          true ->
+            # inline attributes: headings, links, images
+            triples1 =
+              case Regex.run(~r/^\s*(#\{1,6\})\s+(.+?)\s*\{([^}]*)\}\s*$/, line, capture: :all_but_first) do
+                [hashes, text, attrs] ->
+                  level = String.length(hashes)
+                  attrs_map = parse_attrs(attrs)
+                  slug = MarkdownLd.Determinism.slug(text || "")
+                  subj = attrs_map["ld:@id"] || doc || base_subject(base, slug)
+                  if subj, do: emit_heading_triples(subj, attrs_map, ctx, base), else: []
+                _ -> []
+              end
+            triples2 =
+              case Regex.run(~r/\[([^\]]+)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
+                [text1, url, attrs] ->
+                  _ = text1
+                  emit_link_image_triples(doc, url, parse_attrs(attrs), ctx, base)
+                _ -> []
+              end
+            triples3 =
+              case Regex.run(~r/!\[([^\]]*)\]\(([^\)]+)\)\{([^}]*)\}/, line, capture: :all_but_first) do
+                [alt, src, attrs] ->
+                  _ = alt
+                  emit_link_image_triples(doc, src, parse_attrs(attrs), ctx, base)
+                _ -> []
+              end
+            do_single(rest, %{st | i: i, triples: triples3 ++ triples2 ++ triples1 ++ st.triples}, ctx, base, doc)
+        end
     end
   end
 
