@@ -151,3 +151,29 @@ The package is ready for immediate publication and production use.
 **Ready to publish**: `mix hex.publish`
 
 *Last updated: 2025-01-20*
+
+---
+
+## 🧩 Spec Workflow Versioning (Internal Coordination)
+
+To coordinate iterative changes to the spec handoff workflow without churn, we version the
+workflow metadata inside the repo:
+
+- File: `priv/spec_workflow.json`
+- Key: `workflow_version` (string)
+
+Producer side:
+- Propose changes by sending a `proposal` message with a `patch.json` attachment that updates
+  `priv/spec_workflow.json` via JSON Pointer ops.
+- Example ops include bumping `workflow_version`, enabling features (e.g., `features.schema_validation`),
+  and listing supported capabilities (e.g., `targets` array). See `work/spec_requests/demo-001`.
+
+Receiver side:
+- Place incoming messages/attachments per the handoff manifest (inbox + attachments).
+- Apply: `mix spec.apply --id <id>`
+- Validate & render: `mix spec.lint --id <id>` then `mix spec.thread.render --id <id>`
+
+Notes:
+- The repository ignores and CI guard prevent committing built native artifacts; this does not affect
+  versioning metadata like `priv/spec_workflow.json` or checksums files.
+- rustler_precompiled distribution remains unchanged by this process.

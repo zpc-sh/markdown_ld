@@ -1,0 +1,12 @@
+{
+  "file": "priv/spec_workflow.json",
+  "base_pointer": "/",
+  "ops": [
+    {"op": "replace", "path": "/workflow_version", "value": "0.2"},
+    {"op": "add", "path": "/features/schema_validation", "value": true},
+    {"op": "add", "path": "/features/path_safety", "value": true},
+    {"op": "add", "path": "/targets/0", "value": "msg.push:dry-run"},
+    {"op": "add", "path": "/targets/1", "value": "msg.pull:dry-run"}
+  ]
+}
+

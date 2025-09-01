@@ -13,6 +13,12 @@
       "dest": "inbox/msg_demo001_patch.json",
       "size_bytes": 508,
       "sha256": "6ceff0c30c95185681b684b354533e33aaaac65eac6bd36b290381ce75ce2af2"
+    },
+    {
+      "path": "work/spec_requests/demo-001/outbox/msg_demo001_patch2.json",
+      "dest": "inbox/msg_demo001_patch2.json",
+      "size_bytes": 548,
+      "sha256": "38f6946acf9c5a0d0169b30b34c7c4a54bb59a9d9de8c977b9c5e1f836fc5b1c"
     }
   ],
   "attachments": [
@@ -27,6 +33,12 @@
       "dest": "attachments/patch.json",
       "size_bytes": 147,
       "sha256": "d8b9c168f74c13ac719245e837028d208aa9d4322cec9994bef7efa78d6b678a"
+    },
+    {
+      "path": "work/spec_requests/demo-001/attachments/patch2.json",
+      "dest": "attachments/patch2.json",
+      "size_bytes": 427,
+      "sha256": "f1ed5cecbf0ff3c0fd0dc8ecdab7f5d18786794ce83a02c000f3b300932fab86"
     }
   ],
   "notes": [
@@ -34,4 +46,3 @@
     "Receiver can then run: mix spec.apply --id demo-001, followed by mix spec.lint --id demo-001 and mix spec.thread.render --id demo-001"
   ]
 }
-

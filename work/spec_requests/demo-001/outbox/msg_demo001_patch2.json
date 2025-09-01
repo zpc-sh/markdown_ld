@@ -1,0 +1,15 @@
+{
+  "id": "20250831T161000Z-e6f7a8",
+  "from": { "project": "markdown_ld", "agent": "codex" },
+  "type": "proposal",
+  "ref": { "path": "priv/spec_workflow.json", "json_pointer": "/" },
+  "body": "Propose expanding workflow metadata: bump workflow_version to 0.2, enable schema validation and path safety, and record supported dry-run targets.",
+  "attachments": [
+    "attachments/patch2.json"
+  ],
+  "relates_to": { "request_id": "demo-001" },
+  "status": "open",
+  "created_at": "2025-08-31T16:10:00Z",
+  "updated_at": "2025-08-31T16:10:00Z"
+}
+
