@@ -34,7 +34,7 @@ jobs:
             target: x86_64-pc-windows-msvc
 
     env:
-      CRATE: markdown_ld_nif
+      CRATE: markdown_ld_nif  
       APP: markdown_ld
 
     steps:

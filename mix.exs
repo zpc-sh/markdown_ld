@@ -86,9 +86,7 @@ defmodule MarkdownLd.MixProject do
     [
       name: "markdown_ld",
       files: ~w(lib .formatter.exs mix.exs README.md LICENSE SPEC.md 
-                CHANGELOG.md native/markdown_ld_nif/src 
-                native/markdown_ld_nif/Cargo.toml native/markdown_ld_nif/Cargo.lock
-                native/markdown_ld_nif/.cargo),
+                CHANGELOG.md native/src native/Cargo.toml native/Cargo.lock),
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/nocsi/markdown-ld"},
       maintainers: ["NOCSI"],
