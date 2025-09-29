@@ -4,13 +4,13 @@ defmodule MarkdownLd.MixProject do
   def project do
     [
       app: :markdown_ld,
-      version: "0.4.1",
+      version: "0.4.3",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
-      
-      # BUILD: Documentation and dialyzer  
+
+      # BUILD: Documentation and dialyzer
       docs: docs(),
       dialyzer: dialyzer(),
       description: description(),
@@ -29,7 +29,7 @@ defmodule MarkdownLd.MixProject do
     [
       {:rustler, "~> 0.34.0", runtime: false},
       {:rustler_precompiled, "~> 0.8"},
-      {:jsonld_ex, ">= 0.0.0", optional: true},
+      {:jsonld_ex, ">= 0.4.4", optional: true},
       {:jason, "~> 1.2"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
@@ -56,11 +56,11 @@ defmodule MarkdownLd.MixProject do
       groups_for_modules: [
         "Core API": [MarkdownLd],
         "Native Interface": [MarkdownLd.Native],
-        "Application": [MarkdownLd.Application]
+        Application: [MarkdownLd.Application]
       ],
       groups_for_extras: [
-        "Introduction": ~r/README/,
-        "Performance": ~r/PERFORMANCE/,
+        Introduction: ~r/README/,
+        Performance: ~r/PERFORMANCE/,
         "Release Notes": ~r/CHANGELOG/
       ],
       api_reference: false,
@@ -85,8 +85,8 @@ defmodule MarkdownLd.MixProject do
   defp package do
     [
       name: "markdown_ld",
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE SPEC.md 
-                CHANGELOG.md native/markdown_ld_nif/src 
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE SPEC.md
+                CHANGELOG.md native/markdown_ld_nif/src
                 native/markdown_ld_nif/Cargo.toml native/markdown_ld_nif/Cargo.lock
                 native/markdown_ld_nif/.cargo),
       licenses: ["MIT"],

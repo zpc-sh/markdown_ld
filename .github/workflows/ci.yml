@@ -1,274 +1,214 @@
-# BUILD: Advanced CI/CD Pipeline for JsonldEx
-
-name: CI/CD Pipeline
+name: ci
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
-  release:
-    types: [ published ]
 
-env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # BUILD: Code quality and linting
-  quality:
-    name: Code Quality
+  build-test-base:
+    runs-on: ubuntu-latest
+    env:
+      MARKDOWN_LD_NIF_FORCE_BUILD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '26'
+          elixir-version: '1.16'
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-${{ runner.os }}-${{ hashFiles('**/mix.lock') }}
+      - name: Cache build
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: build-${{ runner.os }}-${{ hashFiles('**/mix.lock') }}
+      - name: Deps
+        run: mix deps.get
+      - name: Compile
+        run: mix compile
+      - name: Test
+        run: mix test
+
+  lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.16'
-        otp-version: '26'
-        
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-        
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-          ~/.cargo/registry
-          ~/.cargo/git
-          native/jsonld_nif/target
-        key: quality-${{ runner.os }}-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-        
-    - name: Install dependencies
-      run: |
-        mix deps.get
-        cd native/jsonld_nif && cargo fetch
-        
-    - name: Check Elixir formatting
-      run: mix format --check-formatted
-      
-    - name: Check Rust formatting  
-      run: cd native/jsonld_nif && cargo fmt -- --check
-      
-    - name: Lint Elixir code
-      run: mix credo --strict
-      
-    - name: Lint Rust code
-      run: cd native/jsonld_nif && cargo clippy -- -D warnings
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '26'
+          elixir-version: '1.16'
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install deps
+        run: mix deps.get
+      - name: Elixir format check
+        run: mix format --check-formatted
+      - name: Elixir credo
+        run: mix credo --strict
+      - name: Rust format check
+        run: |
+          cd native/markdown_ld_nif
+          rustup component add rustfmt || true
+          cargo fmt -- --check
+      - name: Rust clippy
+        run: |
+          cd native/markdown_ld_nif
+          rustup component add clippy || true
+          cargo clippy -- -D warnings
 
-  # BUILD: Cross-platform testing matrix
-  test:
-    name: Test (${{ matrix.os }}, Elixir ${{ matrix.elixir }}, OTP ${{ matrix.otp }})
-    runs-on: ${{ matrix.os }}
-    
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '26'
+          elixir-version: '1.16'
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install Elixir deps
+        run: mix deps.get
+      - name: Hex deps audit
+        run: mix deps.audit
+      - name: Install cargo-audit
+        run: cargo install cargo-audit || true
+      - name: Cargo audit
+        run: |
+          cd native/markdown_ld_nif
+          cargo audit
+
+  changelog:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require CHANGELOG for user-facing changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          echo "Comparing $BASE...$HEAD"
+          files=$(git diff --name-only "$BASE" "$HEAD")
+          echo "$files" | sed 's/^/ - /'
+          # If no user-facing files changed, skip requirement
+          if ! echo "$files" | grep -E '^(lib/|native/|README\.md|mix\.exs)'; then
+            echo "No user-facing changes detected; skipping CHANGELOG requirement."
+            exit 0
+          fi
+          if echo "$files" | grep -q '^CHANGELOG\.md$'; then
+            echo "CHANGELOG.md updated."
+            exit 0
+          fi
+          echo "ERROR: CHANGELOG.md must be updated for user-facing changes." >&2
+          exit 1
+
+  # Matrix testing across Elixir/OTP versions
+  test-matrix:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          # BUILD: Linux builds with different Elixir/OTP versions
-          - os: ubuntu-latest
-            elixir: '1.15'
+          - elixir: '1.15'
             otp: '25'
-            rust: stable
-          - os: ubuntu-latest  
+          - elixir: '1.15'
+            otp: '26'
+          - elixir: '1.16'
+            otp: '26'
+          - elixir: '1.16'
+            otp: '27'
+    env:
+      MARKDOWN_LD_NIF_FORCE_BUILD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-matrix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+      - name: Cache build
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: build-matrix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+      - name: Deps
+        run: mix deps.get
+      - name: Compile
+        run: mix compile
+      - name: Test
+        run: mix test
+
+  # Cross-platform testing
+  test-platforms:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
             elixir: '1.16'
             otp: '26'
-            rust: stable
-            
-          # BUILD: macOS builds (Apple Silicon optimization)
-          - os: macos-latest
+          - os: macos-14  # Apple Silicon only
             elixir: '1.16'
             otp: '26'
-            rust: stable
-            simd: true
-            
-          # BUILD: Windows builds
-          - os: windows-latest
-            elixir: '1.16' 
-            otp: '26'
-            rust: stable
-    
+    env:
+      MARKDOWN_LD_NIF_FORCE_BUILD: '1'
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: ${{ matrix.elixir }}
-        otp-version: ${{ matrix.otp }}
-        
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: ${{ matrix.rust }}
-        
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-          ~/.cargo/registry
-          ~/.cargo/git
-          native/jsonld_nif/target
-        key: test-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-        
-    - name: Install dependencies
-      run: mix deps.get
-      
-    - name: Set SIMD optimizations (Apple Silicon)
-      if: matrix.simd
-      run: |
-        echo "RUSTFLAGS=-C target-cpu=native -C target-feature=+neon" >> $GITHUB_ENV
-        
-    - name: Run tests
-      run: mix test
-      
-    - name: Run benchmarks
-      run: mix run bench/turbo_benchmark.exs
-
-  # BUILD: Performance benchmarking on optimized hardware
-  benchmark:
-    name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    needs: [quality, test]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.16'
-        otp-version: '26'
-        
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-        
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-          ~/.cargo/registry
-          ~/.cargo/git
-          native/jsonld_nif/target
-        key: bench-${{ runner.os }}-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-        
-    - name: Install dependencies
-      run: mix deps.get
-      
-    - name: Build production release
-      run: |
-        export RUSTFLAGS="-C target-cpu=native -C lto=fat -C codegen-units=1"
-        export MIX_ENV=prod
-        mix compile
-        
-    - name: Run comprehensive benchmarks
-      run: ./scripts/build.sh bench
-      
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v4
-      with:
-        name: benchmark-results
-        path: bench/results/
-
-  # BUILD: Security audit
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.16'
-        otp-version: '26'
-        
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-      
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-          ~/.cargo/registry
-          ~/.cargo/git
-        key: security-${{ runner.os }}-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-        
-    - name: Install dependencies
-      run: mix deps.get
-      
-    - name: Audit Elixir dependencies
-      run: mix deps.audit
-      
-    - name: Audit Rust dependencies
-      run: cd native/jsonld_nif && cargo audit
-
-  # BUILD: Documentation and release
-  docs-and-release:
-    name: Documentation and Release
-    runs-on: ubuntu-latest
-    needs: [quality, test, benchmark, security]
-    if: github.event_name == 'release'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.16'
-        otp-version: '26'
-        
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-          ~/.cargo/registry
-          ~/.cargo/git
-          native/jsonld_nif/target
-        key: release-${{ runner.os }}-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-        
-    - name: Install dependencies
-      run: mix deps.get
-      
-    - name: Build production release
-      run: |
-        export RUSTFLAGS="-C target-cpu=native -C lto=fat -C codegen-units=1 -C panic=abort"
-        export MIX_ENV=prod  
-        mix compile
-        
-    - name: Generate documentation
-      run: mix docs
-      
-    - name: Build Hex package
-      run: mix hex.build
-      
-    - name: Upload release artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-package
-        path: |
-          *.tar
-          doc/
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-platform-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+      - name: Cache build
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: build-platform-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+      - name: Deps
+        run: mix deps.get
+      - name: Compile
+        run: mix compile
+      - name: Test
+        run: mix test

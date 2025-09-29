@@ -25,9 +25,9 @@ defmodule MarkdownLd.Compiler do
   """
   @spec compile(String.t(), keyword()) :: {:ok, result} | {:error, diagnostics}
   def compile(markdown, opts \\ []) when is_binary(markdown) do
-    _strict = Keyword.get(opts, :strict, false)
+    strict = Keyword.get(opts, :strict, false)
     triples = MarkdownLd.JSONLD.extract_triples(markdown)
-    {:ok, %{triples: triples, diagnostics: %{errors: [], strict: _strict}}}
+    {:ok, %{triples: triples, diagnostics: %{errors: [], strict: strict}}}
   end
 
   @doc """
@@ -49,6 +49,7 @@ defmodule MarkdownLd.Compiler do
   end
 
   defp iri_or_bnode("_:" <> _ = b), do: b
+
   defp iri_or_bnode(b) when is_binary(b) do
     if String.starts_with?(b, ["http://", "https://"]) do
       "<" <> b <> ">"
@@ -78,4 +79,3 @@ defmodule MarkdownLd.Compiler do
     "\"" <> escaped <> "\""
   end
 end
-
