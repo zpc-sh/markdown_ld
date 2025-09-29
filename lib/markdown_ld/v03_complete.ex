@@ -590,7 +590,8 @@ defmodule MarkdownLd.V03Complete do
     if weights == %{} do
       0.5
     else
-      weights |> Map.values() |> (Enum.sum() / length(Map.keys(weights)))
+      values = Map.values(weights)
+      Enum.sum(values) / length(values)
     end
   end
 
